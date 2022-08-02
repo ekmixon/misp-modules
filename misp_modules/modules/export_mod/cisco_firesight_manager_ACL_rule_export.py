@@ -80,28 +80,34 @@ def handler(q=False):
         event_id = ev["Event"]["id"]
         event_info = ev["Event"]["info"]
 
-        for index, attr in enumerate(event):
-            if attr["to_ids"] is True:
-                if attr["type"] in fsmapping:
-                    if attr["type"] == "ip-dst":
-                        ipdst.append(BLOCK_DST_JSON_TMPL.format(ipdst=attr["value"]))
-                    else:
-                        urls.append(BLOCK_URL_JSON_TMPL.format(url=quote(attr["value"], safe='@/:;?&=-_.,+!*')))
+        for attr in event:
+            if attr["to_ids"] is True and attr["type"] in fsmapping:
+                if attr["type"] == "ip-dst":
+                    ipdst.append(BLOCK_DST_JSON_TMPL.format(ipdst=attr["value"]))
+                else:
+                    urls.append(BLOCK_URL_JSON_TMPL.format(url=quote(attr["value"], safe='@/:;?&=-_.,+!*')))
 
     # building the .sh file
     output += SH_FILE_HEADER
-    output += "FIRESIGHT_IP_ADDR='{}'\n".format(config['fmc_ip_addr'])
+    output += f"FIRESIGHT_IP_ADDR='{config['fmc_ip_addr']}'\n"
 
-    output += "LOGINPASS_BASE64=`echo -n '{}:{}' | base64`\n".format(config['fmc_login'], config['fmc_pass'])
-    output += "DOMAIN_ID='{}'\n".format(config['domain_id'])
-    output += "ACPOLICY_ID='{}'\n\n".format(config['acpolicy_id'])
+    output += f"LOGINPASS_BASE64=`echo -n '{config['fmc_login']}:{config['fmc_pass']}' | base64`\n"
+
+    output += f"DOMAIN_ID='{config['domain_id']}'\n"
+    output += f"ACPOLICY_ID='{config['acpolicy_id']}'\n\n"
 
     output += "ACC_TOKEN=`curl -X POST -v -k -sD - -o /dev/null -H \"Authorization: Basic $LOGINPASS_BASE64\" -i \"https://$FIRESIGHT_IP_ADDR/api/fmc_platform/v1/auth/generatetoken\" | grep -i x-auth-acc | sed 's/.*:\\ //g' | tr -d '[:space:]' | tr -d '\\n'`\n"
 
-    output += BLOCK_JSON_TMPL.format(rule_name="misp_event_{}".format(event_id),
-                                     dst_networks=', '.join(ipdst),
-                                     urls=', '.join(urls),
-                                     event_info_comment=event_info) + "\n"
+    output += (
+        BLOCK_JSON_TMPL.format(
+            rule_name=f"misp_event_{event_id}",
+            dst_networks=', '.join(ipdst),
+            urls=', '.join(urls),
+            event_info_comment=event_info,
+        )
+        + "\n"
+    )
+
 
     output += CURL_ADD_RULE_TMPL
     # END building the .sh file

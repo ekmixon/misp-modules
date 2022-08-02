@@ -80,7 +80,7 @@ def build_profile(request):
         return output
 
     profile = {'success': True, 'config': config}
-    profile.update(query_finder(request))
+    profile |= query_finder(request)
 
     return profile
 
@@ -102,19 +102,17 @@ def _generate_request_instance(conf, request_type):
                     'ssl': 'SslRequest', 'enrichment': 'EnrichmentRequest',
                     'attributes': 'AttributeRequest'}
     class_name = class_lookup[request_type]
-    mod = __import__('passivetotal.libs.%s' % request_type,
-                     fromlist=[class_name])
+    mod = __import__(f'passivetotal.libs.{request_type}', fromlist=[class_name])
     loaded = getattr(mod, class_name)
     headers = {'PT-INTEGRATION': 'MISP'}
-    authenticated = loaded(pt_username, pt_api_key, headers=headers)
-    return authenticated
+    return loaded(pt_username, pt_api_key, headers=headers)
 
 
 def _has_error(results):
     """Check to see if there's an error in place and log it."""
     if 'error' in results:
-        msg = "%s - %s" % (results['error']['message'],
-                           results['error']['developer_message'])
+        msg = f"{results['error']['message']} - {results['error']['developer_message']}"
+
         misperrors['error'] = msg
         return True
 
@@ -124,10 +122,9 @@ def _has_error(results):
 def process_ssl_details(instance, query):
     """Process details for a specific certificate."""
     log.debug("SSL Details: starting")
-    values = list()
+    values = []
     details = instance.get_ssl_certificate_details(query=query)
-    err = _has_error(details)
-    if err:
+    if err := _has_error(details):
         raise Exception("We hit an error, time to bail!")
     if details.get('message') and details['message'].startswith('quota_exceeded'):
         raise Exception("API quota exceeded.")
@@ -148,10 +145,9 @@ def process_ssl_history(instance, query):
         'sha1': ['x509-fingerprint-sha1']
     }
 
-    hits = {'ip': list(), 'sha1': list(), 'domain': list()}
+    hits = {'ip': [], 'sha1': [], 'domain': []}
     history = instance.get_ssl_certificate_history(query=query)
-    err = _has_error(history)
-    if err:
+    if err := _has_error(history):
         raise Exception("We hit an error, time to bail!")
     if history.get('message') and history['message'].startswith('quota_exceeded'):
         raise Exception("API quota exceeded.")
@@ -160,7 +156,7 @@ def process_ssl_history(instance, query):
         hits['sha1'].append(item['sha1'])
         hits['domain'] += item.get('domains', [])
 
-    tmp = list()
+    tmp = []
     for key, value in hits.items():
         txt = {'types': type_map[key], 'values': list(set(value))}
         tmp.append(txt)
@@ -173,10 +169,9 @@ def process_ssl_history(instance, query):
 def process_whois_details(instance, query):
     """Process the detail from the WHOIS record."""
     log.debug("WHOIS Details: starting")
-    tmp = list()
+    tmp = []
     details = instance.get_whois_details(query=query, compact_record=True)
-    err = _has_error(details)
-    if err:
+    if err := _has_error(details):
         raise Exception("We hit an error, time to bail!")
     if details.get('message') and details['message'].startswith('quota_exceeded'):
         raise Exception("API quota exceeded.")
@@ -205,32 +200,27 @@ def process_whois_search(instance, query, qtype):
     if qtype in ['whois-registrant-name']:
         field_type = 'name'
 
-    domains = list()
+    domains = []
     search = instance.search_whois_by_field(field=field_type, query=query)
-    err = _has_error(search)
-    if err:
+    if err := _has_error(search):
         raise Exception("We hit an error, time to bail!")
     if search.get('message') and search['message'].startswith('quota_exceeded'):
         raise Exception("API quota exceeded.")
     for item in search.get('results', []):
-        domain = item.get('domain', None)
-        if not domain:
-            continue
-        domains.append(domain)
+        if domain := item.get('domain', None):
+            domains.append(domain)
 
-    tmp = [{'types': ['hostname', 'domain'], 'values': list(set(domains))}]
     log.debug("WHOIS Search: ending")
 
-    return tmp
+    return [{'types': ['hostname', 'domain'], 'values': list(set(domains))}]
 
 
 def process_passive_dns(instance, query):
     """Process passive DNS data."""
     log.debug("Passive DNS: starting")
-    tmp = list()
+    tmp = []
     pdns = instance.get_unique_resolutions(query=query)
-    err = _has_error(pdns)
-    if err:
+    if err := _has_error(pdns):
         raise Exception("We hit an error, time to bail!")
     if pdns.get('message') and pdns['message'].startswith('quota_exceeded'):
         raise Exception("API quota exceeded.")
@@ -246,29 +236,23 @@ def process_passive_dns(instance, query):
 def process_osint(instance, query):
     """Process OSINT links."""
     log.debug("OSINT: starting")
-    urls = list()
     osint = instance.get_osint(query=query)
-    err = _has_error(osint)
-    if err:
+    if err := _has_error(osint):
         raise Exception("We hit an error, time to bail!")
     if osint.get('message') and osint['message'].startswith('quota_exceeded'):
         raise Exception("API quota exceeded.")
-    for item in osint.get('results', []):
-        urls.append(item['sourceUrl'])
-
-    tmp = [{'types': ['link'], 'values': urls}]
+    urls = [item['sourceUrl'] for item in osint.get('results', [])]
     log.debug("OSINT: ending")
 
-    return tmp
+    return [{'types': ['link'], 'values': urls}]
 
 
 def process_malware(instance, query):
     """Process malware samples."""
     log.debug("Malware: starting")
-    content = {'hashes': list(), 'urls': list()}
+    content = {'hashes': [], 'urls': []}
     malware = instance.get_malware(query=query)
-    err = _has_error(malware)
-    if err:
+    if err := _has_error(malware):
         raise Exception("We hit an error, time to bail!")
     if malware.get('message') and malware['message'].startswith('quota_exceeded'):
         raise Exception("API quota exceeded.")
@@ -277,7 +261,7 @@ def process_malware(instance, query):
         content['urls'].append(item['sourceUrl'])
 
     tmp = [{'types': ['link'], 'values': content['urls']}]
-    hashes = {'md5': list(), 'sha1': list(), 'sha256': list()}
+    hashes = {'md5': [], 'sha1': [], 'sha256': []}
     for h in content['hashes']:
         if len(h) == 32:
             hashes['md5'].append(h)
@@ -303,12 +287,12 @@ def handler(q=False):
         log.error(misperrors['error'])
         return misperrors
 
-    output = {'results': list()}
+    output = {'results': []}
 
-    instances = dict()
-    for service in profile['playbook']['services']:
-        instances[service] = _generate_request_instance(
-            profile['config'], service)
+    instances = {
+        service: _generate_request_instance(profile['config'], service)
+        for service in profile['playbook']['services']
+    }
 
     play_type = profile['playbook']['name']
     query = profile['value']

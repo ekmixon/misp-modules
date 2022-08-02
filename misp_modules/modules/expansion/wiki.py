@@ -31,11 +31,10 @@ def handler(q=False):
         result = results["results"]["bindings"]
         summary = result[0]["item"]["value"] if result else 'No additional data found on Wikidata'
     except Exception as e:
-        misperrors['error'] = 'wikidata API not accessible {}'.format(e)
+        misperrors['error'] = f'wikidata API not accessible {e}'
         return misperrors['error']
 
-    r = {'results': [{'types': mispattributes['output'], 'values': summary}]}
-    return r
+    return {'results': [{'types': mispattributes['output'], 'values': summary}]}
 
 
 def introspection():

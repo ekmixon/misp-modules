@@ -41,8 +41,7 @@ class VulnerabilityParser():
     def parse_vulnerability_information(self):
         vulnerability_object = MISPObject('vulnerability')
         for feature in ('id', 'summary', 'Modified', 'cvss'):
-            value = self.vulnerability.get(feature)
-            if value:
+            if value := self.vulnerability.get(feature):
                 attribute_type, relation = self.vulnerability_mapping[feature]
                 vulnerability_object.add_attribute(relation, **{'type': attribute_type, 'value': value})
         if 'Published' in self.vulnerability:
@@ -108,7 +107,7 @@ class VulnerabilityParser():
 
 
 def check_url(url):
-    return "{}/".format(url) if not url.endswith('/') else url
+    return url if url.endswith('/') else f"{url}/"
 
 
 def handler(q=False):
@@ -122,7 +121,7 @@ def handler(q=False):
         misperrors['error'] = 'Vulnerability id missing.'
         return misperrors
     api_url = check_url(request['config']['custom_API']) if request['config'].get('custom_API') else cveapi_url
-    r = requests.get("{}{}".format(api_url, attribute['value']))
+    r = requests.get(f"{api_url}{attribute['value']}")
     if r.status_code == 200:
         vulnerability = r.json()
         if not vulnerability:

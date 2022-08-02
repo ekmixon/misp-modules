@@ -51,7 +51,7 @@ def handler(q=False):
     if not request.get('attribute') or not check_input_attribute(request['attribute']):
         return {'error': f'{standard_error_message}, which should contain at least a type, a value and an uuid.'}
     attribute = request.get('attribute')
-    if not any(input_type == attribute.get('type') for input_type in misp_type_in):
+    if all(input_type != attribute.get('type') for input_type in misp_type_in):
         return {'error': 'Unsupported attribute type.'}
 
     client = CSIntelAPI(request['config']['api_id'], request['config']['apikey'])

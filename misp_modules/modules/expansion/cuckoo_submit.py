@@ -43,7 +43,7 @@ class CuckooAPI(object):
     def __init__(self, api_url, api_key=""):
         self.api_key = api_key
         if not api_url.startswith("http"):
-            api_url = "https://{}".format(api_url)
+            api_url = f"https://{api_url}"
 
         self.api_url = api_url
 
@@ -55,9 +55,11 @@ class CuckooAPI(object):
         try:
             response = requests.post(
                 urllib.parse.urljoin(self.api_url, endpoint),
-                files=files, data=data,
-                headers={"Authorization": "Bearer {}".format(self.api_key)}
+                files=files,
+                data=data,
+                headers={"Authorization": f"Bearer {self.api_key}"},
             )
+
         except RequestException as e:
             log.error("Failed to submit sample to Cuckoo Sandbox. %s", e)
             return None
@@ -75,19 +77,13 @@ class CuckooAPI(object):
         response = self._post_api(
             "/tasks/create/file", files={"file": (filename, fp)}
         )
-        if not response:
-            return False
-
-        return response["task_id"]
+        return response["task_id"] if response else False
 
     def create_url(self, url):
         response = self._post_api(
             "/tasks/create/url", data={"url": url}
         )
-        if not response:
-            return False
-
-        return response["task_id"]
+        return response["task_id"] if response else False
 
 
 def handler(q=False):
@@ -130,18 +126,14 @@ def handler(q=False):
                 filename=filename, fp=io.BytesIO(data)
             )
     except APIKeyError as e:
-        misperrors["error"] = "Failed to submit to Cuckoo: {}".format(e)
+        misperrors["error"] = f"Failed to submit to Cuckoo: {e}"
         return misperrors
 
     if not task_id:
         misperrors["error"] = "File or URL submission failed"
         return misperrors
 
-    return {
-        "results": [
-            {"types": "text", "values": "Cuckoo task id: {}".format(task_id)}
-        ]
-    }
+    return {"results": [{"types": "text", "values": f"Cuckoo task id: {task_id}"}]}
 
 
 def introspection():

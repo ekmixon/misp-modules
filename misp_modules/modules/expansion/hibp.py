@@ -31,8 +31,7 @@ def handler(q=False):
 
     r = requests.get(haveibeenpwned_api_url + email, headers={'hibp-api-key': API_KEY})
     if r.status_code == 200:
-        breaches = json.loads(r.text)
-        if breaches:
+        if breaches := json.loads(r.text):
             return {'results': [{'types': mispattributes['output'], 'values': breaches}]}
     elif r.status_code == 404:
         return {'results': [{'types': mispattributes['output'], 'values': 'OK (Not Found)'}]}

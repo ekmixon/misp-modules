@@ -29,7 +29,7 @@ class ThreatMiner():
         for key, values in self.results.items():
             if values:
                 input_value, comment = key[:2]
-                types = [k for k in key[2:]]
+                types = list(key[2:])
                 to_return.append({'types': types, 'values': list(values),
                                   'comment': self.comment.format(input_value, comment)})
         return to_return
@@ -45,7 +45,7 @@ class ThreatMiner():
                            5: ('_add_domain', 'subdomain'), 6: ('_add_link', 'report')}
         for flag, mapped in queries_mapping.items():
             req = requests.get('https://www.threatminer.org/domain.php', params={'q': q, 'api': 'True', 'rt': flag})
-            if not req.status_code == 200:
+            if req.status_code != 200:
                 continue
             results = req.json().get('results')
             if not results:
@@ -58,7 +58,7 @@ class ThreatMiner():
                            6: ('_add_text', 'detection'), 7: ('_add_hash', 'report')}
         for flag, mapped in queries_mapping.items():
             req = requests.get('https://www.threatminer.org/sample.php', params={'q': q, 'api': 'True', 'rt': flag})
-            if not req.status_code == 200:
+            if req.status_code != 200:
                 continue
             results = req.json().get('results')
             if not results:
@@ -72,7 +72,7 @@ class ThreatMiner():
                            5: ('_add_x509', 'ssl'), 6: ('_add_link', 'report')}
         for flag, mapped in queries_mapping.items():
             req = requests.get('https://www.threatminer.org/host.php', params={'q': q, 'api': 'True', 'rt': flag})
-            if not req.status_code == 200:
+            if req.status_code != 200:
                 continue
             results = req.json().get('results')
             if not results:
@@ -97,17 +97,14 @@ class ThreatMiner():
 
     def _add_network(self, results, q, comment):
         for result in results:
-            domains = result.get('domains')
-            if domains:
+            if domains := result.get('domains'):
                 self.results[(q, comment, 'domain')].update({domain['domain'] for domain in domains if domain.get('domain')})
-            hosts = result.get('hosts')
-            if hosts:
+            if hosts := result.get('hosts'):
                 self.results[(q, comment, 'ip-src', 'ip-dst')].update({host for host in hosts if isinstance(host, str)})
 
     def _add_text(self, results, q, comment):
         for result in results:
-            detections = result.get('av_detections')
-            if detections:
+            if detections := result.get('av_detections'):
                 self.results[(q, comment, 'text')].update({d['detection'] for d in detections if d.get('detection')})
 
     def _add_uri(self, results, q, comment):
@@ -115,8 +112,7 @@ class ThreatMiner():
 
     def _add_whois(self, results, q, comment):
         for result in results:
-            emails = result.get('whois', {}).get('emails')
-            if emails:
+            if emails := result.get('whois', {}).get('emails'):
                 self.results[(q, comment, 'whois-registrant-email')].update({email for em_type, email in emails.items() if em_type == 'registrant' and email})
 
     def _add_x509(self, results, q, comment):

@@ -34,8 +34,13 @@ def handler(q=False):
     if request.get('domain'):
         tosubmit.append(request['domain'])
     elif request.get('domain|ip'):
-        tosubmit.append(request['domain|ip'].split('|')[0])
-        tosubmit.append(request['domain|ip'].split('|')[1])
+        tosubmit.extend(
+            (
+                request['domain|ip'].split('|')[0],
+                request['domain|ip'].split('|')[1],
+            )
+        )
+
     elif request.get('hostname'):
         tosubmit.append(request['hostname'])
     elif request.get('ip-dst'):
@@ -81,16 +86,19 @@ def handler(q=False):
                     submitcache_directory = cache_directory
                 else:
                     ErrorMSG = "Cache directory is not writable. Please fix it before."
-                    log.debug(str(ErrorMSG))
+                    log.debug(ErrorMSG)
                     misperrors['error'] = ErrorMSG
                     return misperrors
             else:
                 ErrorMSG = "Value for Plugin.Enrichment_apiosintds_cache_directory is empty but cache option is enabled as recommended. Please set a writable cache directory in plugin settings."
-                log.debug(str(ErrorMSG))
+                log.debug(ErrorMSG)
                 misperrors['error'] = ErrorMSG
                 return misperrors
         else:
-            log.debug("Cache option is set to " + str(submitcache) + ". You are not using the internal cache system and this is NOT recommended!")
+            log.debug(
+                f"Cache option is set to {submitcache}. You are not using the internal cache system and this is NOT recommended!"
+            )
+
             log.debug("Please, consider to turn on the cache setting it to 'Yes' and specifing a writable directory for the cache directory option.")
     try:
         response = apiosintDS.request(entities=tosubmit, cache=submitcache, cachedirectory=submitcache_directory, verbose=True)
@@ -108,27 +116,55 @@ def apiosintParser(response, import_related_hashes):
             for item in response[key]["items"]:
                 if item["response"]:
                     comment = item["item"] + " IS listed by OSINT.digitalside.it. Date list: " + response[key]["list"]["date"]
-                    if key == "url":
-                        if "hashes" in item.keys():
-                            if "sha256" in item["hashes"].keys():
-                                ret.append({"types": ["sha256"], "values": [item["hashes"]["sha256"]]})
-                            if "sha1" in item["hashes"].keys():
-                                ret.append({"types": ["sha1"], "values": [item["hashes"]["sha1"]]})
-                            if "md5" in item["hashes"].keys():
-                                ret.append({"types": ["md5"], "values": [item["hashes"]["md5"]]})
+                    if key == "url" and "hashes" in item.keys():
+                        if "sha256" in item["hashes"].keys():
+                            ret.append({"types": ["sha256"], "values": [item["hashes"]["sha256"]]})
+                        if "sha1" in item["hashes"].keys():
+                            ret.append({"types": ["sha1"], "values": [item["hashes"]["sha1"]]})
+                        if "md5" in item["hashes"].keys():
+                            ret.append({"types": ["md5"], "values": [item["hashes"]["md5"]]})
 
                     if len(item["related_urls"]) > 0:
                         for urls in item["related_urls"]:
                             if isinstance(urls, dict):
                                 itemToInclude = urls["url"]
-                                if import_related_hashes:
-                                    if "hashes" in urls.keys():
-                                        if "sha256" in urls["hashes"].keys():
-                                            ret.append({"types": ["sha256"], "values": [urls["hashes"]["sha256"]], "comment": "Related to: " + itemToInclude})
-                                        if "sha1" in urls["hashes"].keys():
-                                            ret.append({"types": ["sha1"], "values": [urls["hashes"]["sha1"]], "comment": "Related to: " + itemToInclude})
-                                        if "md5" in urls["hashes"].keys():
-                                            ret.append({"types": ["md5"], "values": [urls["hashes"]["md5"]], "comment": "Related to: " + itemToInclude})
+                                if (
+                                    import_related_hashes
+                                    and "hashes" in urls.keys()
+                                ):
+                                    if "sha256" in urls["hashes"].keys():
+                                        ret.append(
+                                            {
+                                                "types": ["sha256"],
+                                                "values": [
+                                                    urls["hashes"]["sha256"]
+                                                ],
+                                                "comment": f"Related to: {itemToInclude}",
+                                            }
+                                        )
+
+                                    if "sha1" in urls["hashes"].keys():
+                                        ret.append(
+                                            {
+                                                "types": ["sha1"],
+                                                "values": [
+                                                    urls["hashes"]["sha1"]
+                                                ],
+                                                "comment": f"Related to: {itemToInclude}",
+                                            }
+                                        )
+
+                                    if "md5" in urls["hashes"].keys():
+                                        ret.append(
+                                            {
+                                                "types": ["md5"],
+                                                "values": [
+                                                    urls["hashes"]["md5"]
+                                                ],
+                                                "comment": f"Related to: {itemToInclude}",
+                                            }
+                                        )
+
                                 ret.append({"types": ["url"], "values": [itemToInclude], "comment": "Related to: " + item["item"]})
                             else:
                                 ret.append({"types": ["url"], "values": [urls], "comment": "Related URL to: " + item["item"]})

@@ -33,12 +33,10 @@ class OnypheClient:
 
     def get_results(self):
         event = json.loads(self.misp_event.to_json())
-        results = {key: event[key]
-                   for key in ('Attribute', 'Object') if key in event}
-        return results
+        return {key: event[key] for key in ('Attribute', 'Object') if key in event}
 
     def get_query_onyphe(self):
-        if self.attribute['type'] == 'ip-src' or self.attribute['type'] == 'ip-dst':
+        if self.attribute['type'] in ['ip-src', 'ip-dst']:
             self.__summary_ip()
         if self.attribute['type'] == 'domain':
             self.__summary_domain()
@@ -118,10 +116,9 @@ class OnypheClient:
                 if 'issuer' in r:
                     self.__get_object_certificate(r)
 
-                if 'cve' in r:
-                    if type(r['cve']) is list:
-                        for cve in r['cve']:
-                            self.__get_object_cve(r, cve)
+                if 'cve' in r and type(r['cve']) is list:
+                    for cve in r['cve']:
+                        self.__get_object_cve(r, cve)
 
     def __get_object_certificate(self, r):
         object_certificate = MISPObject('x509')
@@ -164,8 +161,7 @@ class OnypheClient:
     def __get_object_domain_ip(self, obs, relation):
         objet_domain_ip = MISPObject('domain-ip')
         objet_domain_ip.add_attribute(relation, obs)
-        relation_attr = self.__get_relation_attribute()
-        if relation_attr:
+        if relation_attr := self.__get_relation_attribute():
             objet_domain_ip.add_attribute(
                 relation_attr, self.attribute['value'])
             objet_domain_ip.add_reference(self.attribute['uuid'], 'related-to')
@@ -173,22 +169,18 @@ class OnypheClient:
 
     def __get_relation_attribute(self):
 
-        if self.attribute['type'] == 'ip-src':
+        if self.attribute['type'] in ['ip-src', 'ip-dst']:
             return 'ip'
-        elif self.attribute['type'] == 'ip-dst':
-            return 'ip'
-        elif self.attribute['type'] == 'domain':
-            return 'domain'
-        elif self.attribute['type'] == 'hostname':
+        elif self.attribute['type'] in ['domain', 'hostname']:
             return 'domain'
 
     def __get_object_cve(self, item, cve):
-        attributes = []
         object_cve = MISPObject('vulnerability')
         object_cve.add_attribute('id', cve)
         object_cve.add_attribute('state', 'Published')
 
         if type(item['ip']) is list:
+            attributes = []
             for ip in item['ip']:
                 attributes.extend(
                     list(filter(lambda x: x['value'] == ip, self.misp_event['Attribute'])))

@@ -81,18 +81,25 @@ def handler(q=False):
         return misperrors
 
     if data and sample_filename:
-        args = {}
-        args["shareable"] = shareable
-        args["sample_file"] = {'data': io.BytesIO(data), 'filename': sample_filename}
-        args["reanalyze"] = reanalyze
+        args = {
+            "shareable": shareable,
+            "sample_file": {
+                'data': io.BytesIO(data),
+                'filename': sample_filename,
+            },
+            "reanalyze": reanalyze,
+        }
 
         try:
             vmraydata = vmraySubmit(api, args)
-            if vmraydata["errors"] and "Submission not stored" not in vmraydata["errors"][0]["error_msg"]:
-                misperrors['error'] = "VMRay: %s" % vmraydata["errors"][0]["error_msg"]
-                return misperrors
-            else:
+            if (
+                not vmraydata["errors"]
+                or "Submission not stored"
+                in vmraydata["errors"][0]["error_msg"]
+            ):
                 return vmrayProcess(vmraydata)
+            misperrors['error'] = f'VMRay: {vmraydata["errors"][0]["error_msg"]}'
+            return misperrors
         except Exception:
             misperrors['error'] = "Problem when calling API."
             return misperrors
@@ -123,7 +130,14 @@ def vmrayProcess(vmraydata):
                 r['results'].append({'types': 'md5', 'values': sample['sample_md5hash']})
                 r['results'].append({'types': 'sha1', 'values': sample['sample_sha1hash']})
                 r['results'].append({'types': 'sha256', 'values': sample['sample_sha256hash']})
-                r['results'].append({'types': 'text', 'values': 'VMRay Sample ID: %s' % sample['sample_id'], 'tags': 'workflow:state="incomplete"'})
+                r['results'].append(
+                    {
+                        'types': 'text',
+                        'values': f"VMRay Sample ID: {sample['sample_id']}",
+                        'tags': 'workflow:state="incomplete"',
+                    }
+                )
+
                 r['results'].append({'types': 'link', 'values': sample['sample_webif_url']})
 
                 # Include data from different jobs
@@ -132,7 +146,13 @@ def vmrayProcess(vmraydata):
                         job_id = job["job_id"]
                         job_vm_name = job["job_vm_name"]
                         job_configuration_name = job["job_configuration_name"]
-                        r["results"].append({"types": "text", "values": "VMRay Job ID %s (%s - %s)" % (job_id, job_vm_name, job_configuration_name)})
+                        r["results"].append(
+                            {
+                                "types": "text",
+                                "values": f"VMRay Job ID {job_id} ({job_vm_name} - {job_configuration_name})",
+                            }
+                        )
+
                 return r
             else:
                 misperrors['error'] = "No valid results returned."
@@ -147,5 +167,4 @@ def vmrayProcess(vmraydata):
 
 def vmraySubmit(api, args):
     ''' Submit the sample to VMRay'''
-    vmraydata = api.call("POST", "/rest/sample/submit", args)
-    return vmraydata
+    return api.call("POST", "/rest/sample/submit", args)

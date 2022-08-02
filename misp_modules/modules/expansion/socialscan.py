@@ -32,16 +32,17 @@ _PLATFORMS = [
 _EMAIL_PLATFORMS = [
     Platforms.PINTEREST,
     Platforms.SPOTIFY,
-    Platforms.FIREFOX
+    Platforms.FIREFOX,
+    *_PLATFORMS,
 ]
-_EMAIL_PLATFORMS.extend(_PLATFORMS)
+
 _USERNAME_PLATFORMS = [
     Platforms.SNAPCHAT,
     Platforms.GITLAB,
     Platforms.REDDIT,
-    Platforms.YAHOO
+    Platforms.YAHOO,
+    *_PLATFORMS,
 ]
-_USERNAME_PLATFORMS.extend(_PLATFORMS)
 
 
 def parse_results(query_results, feature):
@@ -86,10 +87,14 @@ def handler(q=False):
         return parse_github_username(request['github-username'])
     if request.get('target-user'):
         return parse_username(request['target-user'])
-    for attribute_type in mispattributes['input'][2:]:
-        if request.get(attribute_type):
-            return parse_email(request[attribute_type])
-    return {'error': 'Unsupported attributes type'}
+    return next(
+        (
+            parse_email(request[attribute_type])
+            for attribute_type in mispattributes['input'][2:]
+            if request.get(attribute_type)
+        ),
+        {'error': 'Unsupported attributes type'},
+    )
 
 
 def introspection():

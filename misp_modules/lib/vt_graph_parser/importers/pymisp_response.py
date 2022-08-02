@@ -59,9 +59,9 @@ def from_pymisp_response(
       [vt_graph_api.graph.VTGraph: the imported graph].
     """
     graphs = []
+    name = "Graph created from MISP event"
     for event_payload in payload['data']:
         misp_attrs, graph_id = parse_pymisp_response(event_payload)
-        name = "Graph created from MISP event"
         graph = import_misp_graph(
             misp_attrs, graph_id, vt_api_key, fetch_information, name,
             private, fetch_vt_enterprise, user_editors, user_viewers, group_editors,

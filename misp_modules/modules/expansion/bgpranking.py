@@ -59,13 +59,13 @@ def handler(q=False):
     bgp_object = MISPObject('bgp-ranking')
     for feature in ('rank', 'position'):
         bgp_attribute = {'value': values['response']['ranking'][feature]}
-        bgp_attribute.update(mapping[feature])
+        bgp_attribute |= mapping[feature]
         bgp_object.add_attribute(**bgp_attribute)
     date_attribute = {'value': datetime.strptime(values['meta']['date'], '%Y-%m-%d')}
-    date_attribute.update(mapping['date'])
+    date_attribute |= mapping['date']
     bgp_object.add_attribute(**date_attribute)
     address_attribute = {'value': values['meta']['address_family']}
-    address_attribute.update(mapping['address_family'])
+    address_attribute |= mapping['address_family']
     bgp_object.add_attribute(**address_attribute)
 
     asn_object.add_reference(attribute.uuid, 'describes')

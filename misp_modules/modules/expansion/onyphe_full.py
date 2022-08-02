@@ -21,37 +21,35 @@ moduleconfig = ['apikey']
 
 
 def handler(q=False):
-    if q:
-
-        request = json.loads(q)
-
-        if not request.get('config') or not request['config'].get('apikey'):
-            misperrors['error'] = 'Onyphe authentication is missing'
-            return misperrors
-
-        api = Onyphe(request['config'].get('apikey'))
-
-        if not api:
-            misperrors['error'] = 'Onyphe Error instance api'
-
-        ip = ''
-        if request.get('ip-src'):
-            ip = request['ip-src']
-            return handle_ip(api, ip, misperrors)
-        elif request.get('ip-dst'):
-            ip = request['ip-dst']
-            return handle_ip(api, ip, misperrors)
-        elif request.get('domain'):
-            domain = request['domain']
-            return handle_domain(api, domain, misperrors)
-        elif request.get('hostname'):
-            hostname = request['hostname']
-            return handle_domain(api, hostname, misperrors)
-        else:
-            misperrors['error'] = "Unsupported attributes type"
-            return misperrors
-    else:
+    if not q:
         return False
+    request = json.loads(q)
+
+    if not request.get('config') or not request['config'].get('apikey'):
+        misperrors['error'] = 'Onyphe authentication is missing'
+        return misperrors
+
+    api = Onyphe(request['config'].get('apikey'))
+
+    if not api:
+        misperrors['error'] = 'Onyphe Error instance api'
+
+    ip = ''
+    if request.get('ip-src'):
+        ip = request['ip-src']
+        return handle_ip(api, ip, misperrors)
+    elif request.get('ip-dst'):
+        ip = request['ip-dst']
+        return handle_ip(api, ip, misperrors)
+    elif request.get('domain'):
+        domain = request['domain']
+        return handle_domain(api, domain, misperrors)
+    elif request.get('hostname'):
+        hostname = request['hostname']
+        return handle_domain(api, hostname, misperrors)
+    else:
+        misperrors['error'] = "Unsupported attributes type"
+        return misperrors
 
 
 def handle_domain(api, domain, misperrors):
@@ -140,46 +138,49 @@ def handle_ip(api, ip, misperrors):
 def expand_syscan(api, ip, misperror):
     status_ok = False
     r = []
-    asn_list = []
-    os_list = []
-    geoloc = []
-    orgs = []
     results = api.synscan(ip)
 
     if results['status'] == 'ok':
         status_ok = True
+        asn_list = []
+        os_list = []
+        geoloc = []
+        orgs = []
         for elem in results['results']:
             asn_list.append(elem['asn'])
             os_target = elem['os']
             geoloc.append(elem['location'])
             orgs.append(elem['organization'])
-            if os_target != 'Unknown' and os_target != 'Undefined':
-                os_list.append(elem['os'])
-
-        r.append({'types': ['target-machine'],
-                  'values': list(set(os_list)),
-                  'categories': ['Targeting data'],
-                  'comment': 'OS found on %s with synscan of Onyphe' % ip})
-
-        r.append({'types': ['target-location'],
-                  'values': list(set(geoloc)),
-                  'categories': ['Targeting data'],
-                  'comment': 'Geolocalisation of %s found with synscan of Onyphe'
-                  % ip
-                  })
-
-        r.append({'types': ['target-org'],
-                  'values': list(set(orgs)),
-                  'categories': ['Targeting data'],
-                  'comment': 'Organisations of %s found with synscan of Onyphe'
-                  % ip
-                  })
-
-        r.append({'types': ['AS'],
-                  'values': list(set(asn_list)),
-                  'categories': ['Network activity'],
-                  'comment': 'As number of %s found with synscan of Onyphe' % ip
-                  })
+            if os_target not in ['Unknown', 'Undefined']:
+                os_list.append(os_target)
+        r.extend(
+            (
+                {
+                    'types': ['target-machine'],
+                    'values': list(set(os_list)),
+                    'categories': ['Targeting data'],
+                    'comment': f'OS found on {ip} with synscan of Onyphe',
+                },
+                {
+                    'types': ['target-location'],
+                    'values': list(set(geoloc)),
+                    'categories': ['Targeting data'],
+                    'comment': f'Geolocalisation of {ip} found with synscan of Onyphe',
+                },
+                {
+                    'types': ['target-org'],
+                    'values': list(set(orgs)),
+                    'categories': ['Targeting data'],
+                    'comment': f'Organisations of {ip} found with synscan of Onyphe',
+                },
+                {
+                    'types': ['AS'],
+                    'values': list(set(asn_list)),
+                    'categories': ['Network activity'],
+                    'comment': f'As number of {ip} found with synscan of Onyphe',
+                },
+            )
+        )
 
     return r, status_ok
 
@@ -189,52 +190,55 @@ def expand_datascan(api, misperror, **kwargs):
     r = []
     # ip = ''
     query = ''
-    asn_list = []
-    geoloc = []
-    orgs = []
-    ports = []
-
     if 'ip' in kwargs:
         query = kwargs.get('ip')
         results = api.datascan(query)
     else:
         query = kwargs.get('domain')
-        results = api.search_datascan('domain:%s' % query)
+        results = api.search_datascan(f'domain:{query}')
 
     if results['status'] == 'ok':
         status_ok = True
+        asn_list = []
+        geoloc = []
+        orgs = []
+        ports = []
+
         for elem in results['results']:
             asn_list.append(elem['asn'])
             geoloc.append(elem['location'])
             orgs.append(elem['organization'])
             ports.append(elem['port'])
 
-        r.append({'types': ['port'],
-                  'values': list(set(ports)),
-                  'categories': ['Other'],
-                  'comment': 'Ports of %s found with datascan of Onyphe'
-                             % query
-                  })
+        r.extend(
+            (
+                {
+                    'types': ['port'],
+                    'values': list(set(ports)),
+                    'categories': ['Other'],
+                    'comment': f'Ports of {query} found with datascan of Onyphe',
+                },
+                {
+                    'types': ['target-location'],
+                    'values': list(set(geoloc)),
+                    'categories': ['Targeting data'],
+                    'comment': f'Geolocalisation of {query} found with synscan of Onyphe',
+                },
+                {
+                    'types': ['target-org'],
+                    'values': list(set(orgs)),
+                    'categories': ['Targeting data'],
+                    'comment': f'Organisations of {query} found with synscan of Onyphe',
+                },
+                {
+                    'types': ['AS'],
+                    'values': list(set(asn_list)),
+                    'categories': ['Network activity'],
+                    'comment': f'As number of {query} found with synscan of Onyphe',
+                },
+            )
+        )
 
-        r.append({'types': ['target-location'],
-                  'values': list(set(geoloc)),
-                  'categories': ['Targeting data'],
-                  'comment': 'Geolocalisation of %s found with synscan of Onyphe'
-                             % query
-                  })
-
-        r.append({'types': ['target-org'],
-                  'values': list(set(orgs)),
-                  'categories': ['Targeting data'],
-                  'comment': 'Organisations of %s found with synscan of Onyphe'
-                             % query
-                  })
-
-        r.append({'types': ['AS'],
-                  'values': list(set(asn_list)),
-                  'categories': ['Network activity'],
-                  'comment': 'As number of %s found with synscan of Onyphe' % query
-                  })
     return r, status_ok
 
 
@@ -242,7 +246,6 @@ def expand_reverse(api, ip, misperror):
     status_ok = False
     r = None
     status_ok = False
-    r = []
     results = api.reverse(ip)
 
     domains_reverse = []
@@ -255,42 +258,50 @@ def expand_reverse(api, ip, misperror):
         domains_reverse.append(elem['reverse'])
         domains.append(elem['domain'])
 
-    r.append({'types': ['domain'],
-              'values': list(set(domains)),
-              'categories': ['Network activity'],
-              'comment': 'Domains of %s from forward service of Onyphe' % ip})
+    r = [
+        {
+            'types': ['domain'],
+            'values': list(set(domains)),
+            'categories': ['Network activity'],
+            'comment': f'Domains of {ip} from forward service of Onyphe',
+        },
+        {
+            'types': ['domain'],
+            'values': list(set(domains_reverse)),
+            'categories': ['Network activity'],
+            'comment': f'Reverse Domains of {ip} from forward service of Onyphe',
+        },
+    ]
 
-    r.append({'types': ['domain'],
-              'values': list(set(domains_reverse)),
-              'categories': ['Network activity'],
-              'comment': 'Reverse Domains of %s from forward service of Onyphe' % ip})
     return r, status_ok
 
 
 def expand_forward(api, ip, misperror):
-    status_ok = False
-    r = []
     results = api.forward(ip)
 
     domains_forward = []
 
     domains = []
-    if results['status'] == 'ok':
-        status_ok = True
-
+    status_ok = results['status'] == 'ok'
     for elem in results['results']:
         domains_forward.append(elem['forward'])
         domains.append(elem['domain'])
 
-    r.append({'types': ['domain'],
-              'values': list(set(domains)),
-              'categories': ['Network activity'],
-              'comment': 'Domains of %s from forward service of Onyphe' % ip})
+    r = [
+        {
+            'types': ['domain'],
+            'values': list(set(domains)),
+            'categories': ['Network activity'],
+            'comment': f'Domains of {ip} from forward service of Onyphe',
+        },
+        {
+            'types': ['domain'],
+            'values': list(set(domains_forward)),
+            'categories': ['Network activity'],
+            'comment': f'Forward Domains of {ip} from forward service of Onyphe',
+        },
+    ]
 
-    r.append({'types': ['domain'],
-              'values': list(set(domains_forward)),
-              'categories': ['Network activity'],
-              'comment': 'Forward Domains of %s from forward service of Onyphe' % ip})
     return r, status_ok
 
 
@@ -300,41 +311,54 @@ def expand_pastries(api, misperror, **kwargs):
 
     query = None
     result = None
-    urls_pasties = []
-    domains = []
-    ips = []
     if 'ip' in kwargs:
         query = kwargs.get('ip')
         result = api.pastries(query)
     if 'domain' in kwargs:
         query = kwargs.get('domain')
-        result = api.search_pastries('domain:%s' % query)
+        result = api.search_pastries(f'domain:{query}')
 
     if result['status'] == 'ok':
         status_ok = True
+        urls_pasties = []
+        domains = []
+        ips = []
         for item in result['results']:
-            if item['@category'] == 'pastries':
-                if item['source'] == 'pastebin':
-                    urls_pasties.append('https://pastebin.com/raw/%s' % item['key'])
+            if (
+                item['@category'] == 'pastries'
+                and item['source'] == 'pastebin'
+            ):
+                urls_pasties.append(f"https://pastebin.com/raw/{item['key']}")
 
-                    if 'domain' in item:
-                        domains.extend(item['domain'])
-                    if 'ip' in item:
-                        ips.extend(item['ip'])
-                    if 'hostname' in item:
-                        domains.extend(item['hostname'])
+                if 'domain' in item:
+                    domains.extend(item['domain'])
+                if 'ip' in item:
+                    ips.extend(item['ip'])
+                if 'hostname' in item:
+                    domains.extend(item['hostname'])
 
-        r.append({'types': ['url'],
-                  'values': urls_pasties,
-                  'categories': ['External analysis'],
-                  'comment': 'URLs of pasties where %s has found' % query})
-        r.append({'types': ['domain'], 'values': list(set(domains)),
-                  'categories': ['Network activity'],
-                  'comment': 'Domains found in pasties of Onyphe'})
-
-        r.append({'types': ['ip-dst'], 'values': list(set(ips)),
-                  'categories': ['Network activity'],
-                  'comment': 'IPs found in pasties of Onyphe'})
+        r.extend(
+            (
+                {
+                    'types': ['url'],
+                    'values': urls_pasties,
+                    'categories': ['External analysis'],
+                    'comment': f'URLs of pasties where {query} has found',
+                },
+                {
+                    'types': ['domain'],
+                    'values': list(set(domains)),
+                    'categories': ['Network activity'],
+                    'comment': 'Domains found in pasties of Onyphe',
+                },
+                {
+                    'types': ['ip-dst'],
+                    'values': list(set(ips)),
+                    'categories': ['Network activity'],
+                    'comment': 'IPs found in pasties of Onyphe',
+                },
+            )
+        )
 
     return r, status_ok
 
@@ -352,18 +376,25 @@ def expand_threatlist(api, misperror, **kwargs):
         results = api.threatlist(query)
     else:
         query = kwargs.get('domain')
-        results = api.search_threatlist('domain:%s' % query)
+        results = api.search_threatlist(f'domain:{query}')
 
     if results['status'] == 'ok':
         status_ok = True
-        threat_list = ['seen %s on %s ' % (item['seen_date'], item['threatlist'])
-                       for item in results['results']]
+        threat_list = [
+            f"seen {item['seen_date']} on {item['threatlist']} "
+            for item in results['results']
+        ]
 
-        r.append({'types': ['comment'],
-                  'categories': ['Other'],
-                  'values': threat_list,
-                  'comment': '%s is present in threatlist' % query
-                  })
+
+        r.append(
+            {
+                'types': ['comment'],
+                'categories': ['Other'],
+                'values': threat_list,
+                'comment': f'{query} is present in threatlist',
+            }
+        )
+
 
     return r, status_ok
 

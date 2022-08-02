@@ -69,8 +69,8 @@ def get_task_link(uuid, analysis_url=None, portal_url=None):
     if not analysis_url and not portal_url:
         raise ValueError("Neither analysis URL or portal URL have been specified")
     if analysis_url:
-        portal_url = "{}/papi".format(analysis_url.replace("analysis.", "user."))
-    portal_url_path = "../portal#/analyst/task/{}/overview".format(uuid)
+        portal_url = f'{analysis_url.replace("analysis.", "user.")}/papi'
+    portal_url_path = f"../portal#/analyst/task/{uuid}/overview"
     return parse.urljoin(portal_url, portal_url_path)
 
 
@@ -109,10 +109,7 @@ def is_task_hosted(task_link):
     :rtype: boolean
     :return: whether the link points to a hosted analysis
     """
-    for domain in LL_HOSTED_DOMAINS:
-        if domain in task_link:
-            return True
-    return False
+    return any(domain in task_link for domain in LL_HOSTED_DOMAINS)
 
 
 class InvalidArgument(Exception):
@@ -135,11 +132,8 @@ class ApiError(Error):
         self.error_code = error_code
 
     def __str__(self):
-        if self.error_code is None:
-            error_code = ""
-        else:
-            error_code = " ({})".format(self.error_code)
-        return "{}{}".format(self.error_msg, error_code)
+        error_code = "" if self.error_code is None else f" ({self.error_code})"
+        return f"{self.error_msg}{error_code}"
 
 
 class LastlineAbstractClient(abc.ABC):
@@ -268,7 +262,7 @@ class LastlineAbstractClient(abc.ABC):
 
             return ret["data"], None
         except ValueError as e:
-            return None, Error("Response not json {}".format(e))
+            return None, Error(f"Response not json {e}")
 
     def _handle_response(self, response, raw=False):
         """
@@ -285,10 +279,7 @@ class LastlineAbstractClient(abc.ABC):
             response.raise_for_status()
         except requests.RequestException as e:
             _, err = self._parse_response(response)
-            if isinstance(err, ApiError):
-                err_msg = "{}: {}".format(e, err.error_msg)
-            else:
-                err_msg = "{}".format(e)
+            err_msg = f"{e}: {err.error_msg}" if isinstance(err, ApiError) else f"{e}"
             raise CommunicationError(err_msg)
 
         # Otherwise return the data (either parsed or not) but reraise if we have an API error
@@ -385,10 +376,7 @@ class LastlineAbstractClient(abc.ABC):
             except requests.RequestException as e:
                 raise CommunicationError(e)
 
-            if raw_response:
-                return response
-            return self._handle_response(response, raw)
-
+            return response if raw_response else self._handle_response(response, raw)
         except Error as e:
             raise e
 
@@ -724,12 +712,16 @@ class LastlineResultBaseParser(object):
     @staticmethod
     def _get_mitre_techniques(result):
         return [
-            "misp-galaxy:mitre-attack-pattern=\"{} - {}\"".format(w[0], w[1])
-            for w in sorted(set([
-                (y["id"], y["name"])
-                for x in result.get("malicious_activity", [])
-                for y in result.get("activity_to_mitre_techniques", {}).get(x, [])
-            ]))
+            f'misp-galaxy:mitre-attack-pattern=\"{w[0]} - {w[1]}\"'
+            for w in sorted(
+                {
+                    (y["id"], y["name"])
+                    for x in result.get("malicious_activity", [])
+                    for y in result.get("activity_to_mitre_techniques", {}).get(
+                        x, []
+                    )
+                }
+            )
         ]
 
     def parse(self, analysis_link, result):
@@ -804,13 +796,10 @@ class LastlineResultBaseParser(object):
 
                 method, path, http_version = http_conversation["url"].split(" ")
                 if http_conversation["dst_port"] == 80:
-                    uri = "http://{}{}".format(http_conversation["dst_host"], path)
+                    uri = f'http://{http_conversation["dst_host"]}{path}'
                 else:
-                    uri = "http://{}:{}{}".format(
-                        http_conversation["dst_host"],
-                        http_conversation["dst_port"],
-                        path
-                    )
+                    uri = f'http://{http_conversation["dst_host"]}:{http_conversation["dst_port"]}{path}'
+
                 o = pymisp.MISPObject(name='http-request')
                 o.add_attribute('host', http_conversation["dst_host"])
                 o.add_attribute('method', method)
@@ -823,7 +812,7 @@ class LastlineResultBaseParser(object):
         sandbox_type = "saas" if is_task_hosted(analysis_link) else "on-premise"
         o.add_attribute("score", result["score"])
         o.add_attribute("sandbox-type", sandbox_type)
-        o.add_attribute("{}-sandbox".format(sandbox_type), "lastline")
+        o.add_attribute(f"{sandbox_type}-sandbox", "lastline")
         o.add_attribute("permalink", analysis_link)
         self.misp_event.add_object(o)
 

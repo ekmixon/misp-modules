@@ -94,8 +94,9 @@ def handler(q=False):  # noqa: C901
     headers = {
         "Accept": "application/json",
         "key": request["config"]["api_key"],
-        "User-Agent": "greynoise-misp-module-{}".format(moduleinfo["version"]),
+        "User-Agent": f'greynoise-misp-module-{moduleinfo["version"]}',
     }
+
 
     if not (request.get("vulnerability") or request.get("ip-dst") or request.get("ip-src")):
         misperrors["error"] = "Vulnerability id missing"
@@ -134,21 +135,19 @@ def handler(q=False):  # noqa: C901
                     greynoise_api_url = "https://api.greynoise.io/v2/noise/context/"
                     context_response = requests.get(f"{greynoise_api_url}{ip}", headers=headers)
                     context_response = context_response.json()
-                    context_response["link"] = "https://www.greynoise.io/viz/ip/" + ip
+                    context_response["link"] = f"https://www.greynoise.io/viz/ip/{ip}"
                     if "tags" in context_response:
                         context_response["tags"] = ",".join(context_response["tags"])
                     if "cve" in context_response:
                         context_response["cve"] = ",".join(context_response["cve"])
                     for feature in enterprise_context_advanced_mapping.keys():
-                        value = context_response.get(feature)
-                        if value:
+                        if value := context_response.get(feature):
                             attribute_type, relation = enterprise_context_advanced_mapping[feature]
                             enterprise_context_object.add_attribute(
                                 relation, **{"type": attribute_type, "value": value}
                             )
                     for feature in enterprise_context_advanced_metadata_mapping.keys():
-                        value = context_response["metadata"].get(feature)
-                        if value:
+                        if value := context_response["metadata"].get(feature):
                             attribute_type, relation = enterprise_context_advanced_metadata_mapping[feature]
                             enterprise_context_object.add_attribute(
                                 relation, **{"type": attribute_type, "value": value}
@@ -158,36 +157,30 @@ def handler(q=False):  # noqa: C901
                     greynoise_api_url = "https://api.greynoise.io/v2/riot/"
                     riot_response = requests.get(f"{greynoise_api_url}{ip}", headers=headers)
                     riot_response = riot_response.json()
-                    riot_response["link"] = "https://www.greynoise.io/viz/riot/" + ip
+                    riot_response["link"] = f"https://www.greynoise.io/viz/riot/{ip}"
                     for feature in enterprise_riot_mapping.keys():
-                        value = riot_response.get(feature)
-                        if value:
+                        if value := riot_response.get(feature):
                             attribute_type, relation = enterprise_riot_mapping[feature]
                             enterprise_context_object.add_attribute(
                                 relation, **{"type": attribute_type, "value": value}
                             )
                 misp_event.add_object(enterprise_context_object)
-                event = json.loads(misp_event.to_json())
-                results = {key: event[key] for key in ("Attribute", "Object") if (key in event and event[key])}
-                return {"results": results}
             else:
                 response = response.json()
                 community_context_object = MISPObject("greynoise-community-ip-context")
                 for feature in community_found_mapping.keys():
-                    value = response.get(feature)
-                    if value:
+                    if value := response.get(feature):
                         attribute_type, relation = community_found_mapping[feature]
                         community_context_object.add_attribute(relation, **{"type": attribute_type, "value": value})
                 misp_event.add_object(community_context_object)
-                event = json.loads(misp_event.to_json())
-                results = {key: event[key] for key in ("Attribute", "Object") if (key in event and event[key])}
-                return {"results": results}
+            event = json.loads(misp_event.to_json())
+            results = {key: event[key] for key in ("Attribute", "Object") if (key in event and event[key])}
+            return {"results": results}
         if response.status_code == 404 and request["config"]["api_type"] != "enterprise":
             response = response.json()
             community_context_object = MISPObject("greynoise-community-ip-context")
             for feature in community_not_found_mapping.keys():
-                value = response.get(feature)
-                if value:
+                if value := response.get(feature):
                     attribute_type, relation = community_not_found_mapping[feature]
                     community_context_object.add_attribute(relation, **{"type": attribute_type, "value": value})
             misp_event.add_object(community_context_object)
@@ -214,8 +207,7 @@ def handler(q=False):  # noqa: C901
             )
             response["id"] = vulnerability
             for feature in ("id", "details", "count"):
-                value = response.get(feature)
-                if value:
+                if value := response.get(feature):
                     attribute_type, relation = vulnerability_mapping[feature]
                     vulnerability_object.add_attribute(relation, **{"type": attribute_type, "value": value})
             classifications = response["stats"].get("classifications")

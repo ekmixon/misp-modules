@@ -37,8 +37,21 @@ def handler(q=False):
                 if hasattr(shape, "text"):
                     print(shape.text)
                     ppt_content = ppt_content + "\n" + shape.text
-        return {'results': [{'types': ['freetext'], 'values': ppt_content, 'comment': ".pptx-to-text from file " + filename},
-                            {'types': ['text'], 'values': ppt_content, 'comment': ".pptx-to-text from file " + filename}]}
+        return {
+            'results': [
+                {
+                    'types': ['freetext'],
+                    'values': ppt_content,
+                    'comment': f".pptx-to-text from file {filename}",
+                },
+                {
+                    'types': ['text'],
+                    'values': ppt_content,
+                    'comment': f".pptx-to-text from file {filename}",
+                },
+            ]
+        }
+
     except Exception as e:
         print(e)
         err = "Couldn't analyze file as .pptx. Error was: " + str(e)

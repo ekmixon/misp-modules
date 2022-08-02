@@ -74,12 +74,15 @@ class VirusTotalParser(object):
         if req.status_code == 200:
             req = req.json()
             vt_uuid = self.parse_vt_object(req)
-            file_attributes = []
-            for hash_type in ('md5', 'sha1', 'sha256'):
-                if req.get(hash_type):
-                    file_attributes.append({'type': hash_type, 'object_relation': hash_type,
-                                            'value': req[hash_type]})
-            if file_attributes:
+            if file_attributes := [
+                {
+                    'type': hash_type,
+                    'object_relation': hash_type,
+                    'value': req[hash_type],
+                }
+                for hash_type in ('md5', 'sha1', 'sha256')
+                if req.get(hash_type)
+            ]:
                 file_object = MISPObject('file')
                 for attribute in file_attributes:
                     file_object.add_attribute(**attribute)
@@ -176,7 +179,7 @@ class VirusTotalParser(object):
         if query_result['response_code'] == 1:
             vt_object = MISPObject('virustotal-report')
             vt_object.add_attribute('permalink', type='link', value=query_result['permalink'])
-            detection_ratio = '{}/{}'.format(query_result['positives'], query_result['total'])
+            detection_ratio = f"{query_result['positives']}/{query_result['total']}"
             vt_object.add_attribute('detection-ratio', type='text', value=detection_ratio, disable_correlation=True)
             self.misp_event.add_object(**vt_object)
             return vt_object.uuid
@@ -193,23 +196,20 @@ class VirusTotalParser(object):
         if host:
             if not port:
                 misperrors['error'] = 'The virustotal_proxy_host config is set, ' \
-                                    'please also set the virustotal_proxy_port.'
+                                        'please also set the virustotal_proxy_port.'
                 raise KeyError
             parsed = urlparse(host)
-            if 'http' in parsed.scheme:
-                scheme = 'http'
-            else:
-                scheme = parsed.scheme
+            scheme = 'http' if 'http' in parsed.scheme else parsed.scheme
             netloc = parsed.netloc
             host = f'{netloc}:{port}'
 
             if username:
                 if not password:
                     misperrors['error'] = 'The virustotal_proxy_username config is set, ' \
-                                        'please also set the virustotal_proxy_password.'
+                                            'please also set the virustotal_proxy_password.'
                     raise KeyError
                 auth = f'{username}:{password}'
-                host = auth + '@' + host
+                host = f'{auth}@{host}'
 
             proxies = {
                 'http': f'{scheme}://{host}',
@@ -223,9 +223,7 @@ def parse_error(status_code):
     status_mapping = {204: 'VirusTotal request rate limit exceeded.',
                       400: 'Incorrect request, please check the arguments.',
                       403: 'You don\'t have enough privileges to make the request.'}
-    if status_code in status_mapping:
-        return status_mapping[status_code]
-    return "VirusTotal may not be accessible."
+    return status_mapping.get(status_code, "VirusTotal may not be accessible.")
 
 
 def handler(q=False):

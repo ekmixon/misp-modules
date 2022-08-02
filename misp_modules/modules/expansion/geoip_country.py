@@ -49,9 +49,14 @@ def handler(q=False):
         misperrors['error'] = f"GeoIP resolving error: {e}"
         return misperrors
 
-    r = {'results': [{'types': mispattributes['output'], 'values': [answer.country.iso_code]}]}
-
-    return r
+    return {
+        'results': [
+            {
+                'types': mispattributes['output'],
+                'values': [answer.country.iso_code],
+            }
+        ]
+    }
 
 
 def introspection():

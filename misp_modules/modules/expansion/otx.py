@@ -20,11 +20,7 @@ moduleconfig = ["apikey"]
 def isBlacklisted(value):
     blacklist = ['0.0.0.0', '8.8.8.8', '255.255.255.255', '192.168.56.', 'time.windows.com']
 
-    for b in blacklist:
-        if value in b:
-            return False
-
-    return True
+    return all(value not in b for b in blacklist)
 
 
 def valid_ip(ip):
@@ -38,9 +34,8 @@ def findAll(data, keys):
         for key, value in data.items():
             if key == keys:
                 a.append(value)
-            else:
-                if isinstance(value, (dict, list)):
-                    a.extend(findAll(value, keys))
+            elif isinstance(value, (dict, list)):
+                a.extend(findAll(value, keys))
     if isinstance(data, list):
         for i in data:
             a.extend(findAll(i, keys))
@@ -88,12 +83,18 @@ def handler(q=False):
 
 def getHash(_hash, key):
 
-    ret = []
-    req = json.loads(requests.get("https://otx.alienvault.com/otxapi/indicator/file/analysis/" + _hash).text)
+    req = json.loads(
+        requests.get(
+            f"https://otx.alienvault.com/otxapi/indicator/file/analysis/{_hash}"
+        ).text
+    )
 
-    for ip in findAll(req, "dst"):
-        if not isBlacklisted(ip) and valid_ip(ip):
-            ret.append({"types": ["ip-dst", "ip-src"], "values": [ip]})
+
+    ret = [
+        {"types": ["ip-dst", "ip-src"], "values": [ip]}
+        for ip in findAll(req, "dst")
+        if not isBlacklisted(ip) and valid_ip(ip)
+    ]
 
     for domain in findAll(req, "hostname"):
         if "." in domain and not isBlacklisted(domain):
@@ -103,13 +104,24 @@ def getHash(_hash, key):
 
 
 def getIP(ip, key):
-    ret = []
-    req = json.loads(requests.get("https://otx.alienvault.com/otxapi/indicator/ip/malware/" + ip + "?limit=1000").text)
+    req = json.loads(
+        requests.get(
+            f"https://otx.alienvault.com/otxapi/indicator/ip/malware/{ip}?limit=1000"
+        ).text
+    )
 
-    for _hash in findAll(req, "hash"):
-        ret.append({"types": ["sha256"], "values": [_hash]})
 
-    req = json.loads(requests.get("https://otx.alienvault.com/otxapi/indicator/ip/passive_dns/" + ip).text)
+    ret = [
+        {"types": ["sha256"], "values": [_hash]}
+        for _hash in findAll(req, "hash")
+    ]
+
+    req = json.loads(
+        requests.get(
+            f"https://otx.alienvault.com/otxapi/indicator/ip/passive_dns/{ip}"
+        ).text
+    )
+
 
     for hostname in findAll(req, "hostname"):
         if not isBlacklisted(hostname):
@@ -120,17 +132,29 @@ def getIP(ip, key):
 
 def getDomain(domain, key):
 
-    ret = []
+    req = json.loads(
+        requests.get(
+            f"https://otx.alienvault.com/otxapi/indicator/domain/malware/{domain}?limit=1000"
+        ).text
+    )
 
-    req = json.loads(requests.get("https://otx.alienvault.com/otxapi/indicator/domain/malware/" + domain + "?limit=1000").text)
 
-    for _hash in findAll(req, "hash"):
-        ret.append({"types": ["sha256"], "values": [_hash]})
+    ret = [
+        {"types": ["sha256"], "values": [_hash]}
+        for _hash in findAll(req, "hash")
+    ]
 
-    req = json.loads(requests.get("https://otx.alienvault.com/otxapi/indicator/domain/whois/" + domain).text)
+    req = json.loads(
+        requests.get(
+            f"https://otx.alienvault.com/otxapi/indicator/domain/whois/{domain}"
+        ).text
+    )
 
-    for _domain in findAll(req, "domain"):
-        ret.append({"types": ["hostname"], "values": [_domain]})
+
+    ret.extend(
+        {"types": ["hostname"], "values": [_domain]}
+        for _domain in findAll(req, "domain")
+    )
 
     for email in findAll(req, "value"):
         if valid_email(email):
@@ -140,7 +164,12 @@ def getDomain(domain, key):
         if "." in _domain and not isBlacklisted(_domain):
             ret.append({"types": ["hostname"], "values": [_domain]})
 
-    req = json.loads(requests.get("https://otx.alienvault.com/otxapi/indicator/hostname/passive_dns/" + domain).text)
+    req = json.loads(
+        requests.get(
+            f"https://otx.alienvault.com/otxapi/indicator/hostname/passive_dns/{domain}"
+        ).text
+    )
+
     for ip in findAll(req, "address"):
         if valid_ip(ip):
             ret.append({"types": ["ip-dst"], "values": [ip]})

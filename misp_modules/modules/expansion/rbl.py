@@ -95,16 +95,22 @@ def handler(q=False):
     infos = {}
     ipRev = '.'.join(ip.split('.')[::-1])
     for rbl in rbls:
-        query = '{}.{}'.format(ipRev, rbl)
+        query = f'{ipRev}.{rbl}'
         try:
             txt = resolver.query(query, 'TXT')
             infos[query] = [str(t) for t in txt]
         except Exception:
             continue
     result = "\n".join([f"{rbl}: {'  -  '.join(info)}" for rbl, info in infos.items()])
-    if not result:
-        return {'error': 'No data found by querying known RBLs'}
-    return {'results': [{'types': mispattributes.get('output'), 'values': result}]}
+    return (
+        {
+            'results': [
+                {'types': mispattributes.get('output'), 'values': result}
+            ]
+        }
+        if result
+        else {'error': 'No data found by querying known RBLs'}
+    )
 
 
 def introspection():

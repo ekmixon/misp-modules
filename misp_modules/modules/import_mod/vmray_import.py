@@ -72,8 +72,7 @@ def handler(q=False):
         misperrors["error"] = str(exc)
         return misperrors
 
-    event = parser.to_json()
-    return event
+    return parser.to_json()
 
 
 def introspection():

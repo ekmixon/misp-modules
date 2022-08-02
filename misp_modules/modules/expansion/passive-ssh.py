@@ -70,7 +70,7 @@ class PassivesshParser():
 
 
 def check_url(url):
-    return "{}/".format(url) if not url.endswith('/') else url
+    return url if url.endswith('/') else f"{url}/"
 
 
 def handler(q=False):
@@ -98,19 +98,18 @@ def handler(q=False):
     attribute = request['attribute']
     if attribute.get('type') == 'ip-src':
         type = host_query
-        pass
     elif attribute.get('type') == 'ip-dst':
         type = host_query
-        pass
     elif attribute.get('type') == 'ssh-fingerprint':
         type = fingerprint_query
-        pass
     else:
         misperrors['error'] = 'ip is missing.'
         return misperrors
 
-    r = requests.get("{}{}/{}".format(api_url, type,
-                     attribute['value']), auth=(api_user, api_key))
+    r = requests.get(
+        f"{api_url}{type}/{attribute['value']}", auth=(api_user, api_key)
+    )
+
 
     if r.status_code == 200:
         passivesshresult = r.json()
@@ -126,9 +125,7 @@ def handler(q=False):
 
     parser = PassivesshParser(attribute, passivesshresult)
     parser.parse_passivessh_information()
-    result = parser.get_result()
-
-    return result
+    return parser.get_result()
 
 
 def introspection():

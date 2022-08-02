@@ -67,11 +67,10 @@ def _search(**kwargs):
     logger = kwargs.get('logger')
 
     params = urlencode(params)
-    url = remote + "?" + params
+    url = f"{remote}?{params}"
     req = Request(url, headers=headers)
 
-    request_attempts = 1
-    while request_attempts < max_retries:
+    for request_attempts in range(1, max_retries):
         try:
             return urlopen(req)
 
@@ -84,27 +83,19 @@ def _search(**kwargs):
         if response.code not in [429, 504]:
             raise Exception(f'API connection error: {response}')
 
-        if request_attempts < max_retries:
-            wait_time = _get_request_wait_time(request_attempts)
+        wait_time = _get_request_wait_time(request_attempts)
 
-            if response.code == 429:
-                msg = 'rate limit reached on attempt {request_attempts}, ' \
-                      'waiting {wait_time} seconds'
+        msg = (
+            'rate limit reached on attempt {request_attempts}, '
+            'waiting {wait_time} seconds'
+            if response.code == 429
+            else f'connection timed out, retrying in {wait_time} seconds'
+        )
 
-                if logger:
-                    logger(msg)
+        if logger:
+            logger(msg)
 
-            else:
-                msg = f'connection timed out, retrying in {wait_time} seconds'
-                if logger:
-                    logger(msg)
-
-            sleep(wait_time)
-
-        else:
-            raise Exception('Max API retries exceeded')
-
-        request_attempts += 1
+        sleep(wait_time)
 
 
 def _set_headers(**kwargs):
@@ -241,7 +232,7 @@ def search_qsentry(search_term, **kwargs):
     return loads(_search(**kwargs).read())
 
 
-def qsentry_feed(query_type='anon', feed_date=datetime.today(), **kwargs):
+def qsentry_feed(query_type='anon', feed_date=datetime.now(), **kwargs):
     """
     Fetch the most recent QSentry Feed
 
@@ -259,5 +250,4 @@ def qsentry_feed(query_type='anon', feed_date=datetime.today(), **kwargs):
     kwargs['remote'] = f'{remote}/{feed_date}'
 
     resp = _search(**kwargs)
-    for r in _process_qsentry(resp):
-        yield r
+    yield from _process_qsentry(resp)

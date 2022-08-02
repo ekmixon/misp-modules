@@ -37,20 +37,13 @@ def handler(q=False):
         event = ev["Attribute"]
         for attr in event:
             if attr["type"] in cefmapping:
-                response += "{} host CEF:0|{}|{}|{}|{}|{}|{}|{}={}\n".format(
-                            datetime.datetime.fromtimestamp(int(attr["timestamp"])).strftime("%b %d %H:%M:%S"),
-                            config["Device_Vendor"],
-                            config["Device_Product"],
-                            config["Device_Version"],
-                            attr["category"],
-                            attr["category"],
-                            config["Default_Severity"],
-                            cefmapping[attr["type"]],
-                            attr["value"],
-                )
+                response += f'{datetime.datetime.fromtimestamp(int(attr["timestamp"])).strftime("%b %d %H:%M:%S")} host CEF:0|{config["Device_Vendor"]}|{config["Device_Product"]}|{config["Device_Version"]}|{attr["category"]}|{attr["category"]}|{config["Default_Severity"]}|{cefmapping[attr["type"]]}={attr["value"]}\n'
 
-    r = {"response": [], "data": str(base64.b64encode(bytes(response, 'utf-8')), 'utf-8')}
-    return r
+
+    return {
+        "response": [],
+        "data": str(base64.b64encode(bytes(response, 'utf-8')), 'utf-8'),
+    }
 
 
 def introspection():

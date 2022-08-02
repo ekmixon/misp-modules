@@ -16,8 +16,7 @@ moduleconfig = []
 
 def filter_decoded(decoded):
     for line in decoded.split('\n'):
-        decoded_line = line.strip('\t\x0b\x0c\r ')
-        if decoded_line:
+        if decoded_line := line.strip('\t\x0b\x0c\r '):
             yield decoded_line
 
 

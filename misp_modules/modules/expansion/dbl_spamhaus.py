@@ -31,10 +31,14 @@ dbl_mapping = {'127.0.1.2': 'spam domain',
 
 
 def fetch_requested_value(request):
-    for attribute_type in mispattributes['input']:
-        if request.get(attribute_type):
-            return request[attribute_type].split('|')[0]
-    return None
+    return next(
+        (
+            request[attribute_type].split('|')[0]
+            for attribute_type in mispattributes['input']
+            if request.get(attribute_type)
+        ),
+        None,
+    )
 
 
 def handler(q=False):
@@ -45,10 +49,10 @@ def handler(q=False):
     if requested_value is None:
         misperrors['error'] = "Unsupported attributes type"
         return misperrors
-    query = "{}.{}".format(requested_value, dbl)
+    query = f"{requested_value}.{dbl}"
     try:
         query_result = resolver.query(query, 'A')[0]
-        result = "{} - {}".format(requested_value, dbl_mapping[str(query_result)])
+        result = f"{requested_value} - {dbl_mapping[str(query_result)]}"
     except dns.resolver.NXDOMAIN as e:
         result = e.msg
     except Exception:

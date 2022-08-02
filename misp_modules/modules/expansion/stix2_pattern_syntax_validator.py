@@ -21,16 +21,12 @@ def handler(q=False):
     pattern = request.get('stix2-pattern')
     syntax_errors = []
     for p in pattern[1:-1].split(' AND '):
-        syntax_validator = run_validator("[{}]".format(p))
-        if syntax_validator:
-            for error in syntax_validator:
-                syntax_errors.append(error)
+        if syntax_validator := run_validator(f"[{p}]"):
+            syntax_errors.extend(iter(syntax_validator))
     if syntax_errors:
         s = 's' if len(syntax_errors) > 1 else ''
-        s_errors = ""
-        for error in syntax_errors:
-            s_errors += "{}\n".format(error[6:])
-        result = "Syntax error{}: \n{}".format(s, s_errors[:-1])
+        s_errors = "".join(f"{error[6:]}\n" for error in syntax_errors)
+        result = f"Syntax error{s}: \n{s_errors[:-1]}"
     else:
         result = "Syntax valid"
     return {'results': [{'types': mispattributes['output'], 'values': result}]}

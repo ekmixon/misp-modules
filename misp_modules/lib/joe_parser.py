@@ -96,23 +96,23 @@ class JoeParser():
                                                              relationship_type=relationship))
 
     def parse_dropped_files(self):
-        droppedinfo = self.data['droppedinfo']
-        if droppedinfo:
-            for droppedfile in droppedinfo['hash']:
-                file_object = MISPObject('file')
-                for key, mapping in dropped_file_mapping.items():
-                    attribute_type, object_relation = mapping
-                    file_object.add_attribute(object_relation, **{'type': attribute_type, 'value': droppedfile[key], 'to_ids': False})
-                if droppedfile['@malicious'] == 'true':
-                    file_object.add_attribute('state', **{'type': 'text', 'value': 'Malicious', 'to_ids': False})
-                for h in droppedfile['value']:
-                    hash_type = dropped_hash_mapping[h['@algo']]
-                    file_object.add_attribute(hash_type, **{'type': hash_type, 'value': h['$'], 'to_ids': False})
-                self.misp_event.add_object(**file_object)
-                self.references[self.process_references[(int(droppedfile['@targetid']), droppedfile['@process'])]].append({
-                    'referenced_uuid': file_object.uuid,
-                    'relationship_type': 'drops'
-                })
+        if not (droppedinfo := self.data['droppedinfo']):
+            return
+        for droppedfile in droppedinfo['hash']:
+            file_object = MISPObject('file')
+            for key, mapping in dropped_file_mapping.items():
+                attribute_type, object_relation = mapping
+                file_object.add_attribute(object_relation, **{'type': attribute_type, 'value': droppedfile[key], 'to_ids': False})
+            if droppedfile['@malicious'] == 'true':
+                file_object.add_attribute('state', **{'type': 'text', 'value': 'Malicious', 'to_ids': False})
+            for h in droppedfile['value']:
+                hash_type = dropped_hash_mapping[h['@algo']]
+                file_object.add_attribute(hash_type, **{'type': hash_type, 'value': h['$'], 'to_ids': False})
+            self.misp_event.add_object(**file_object)
+            self.references[self.process_references[(int(droppedfile['@targetid']), droppedfile['@process'])]].append({
+                'referenced_uuid': file_object.uuid,
+                'relationship_type': 'drops'
+            })
 
     def parse_mitre_attack(self):
         mitreattack = self.data['mitreattack']
@@ -132,7 +132,9 @@ class JoeParser():
                     connections[tuple(packet[field] for field in network_behavior_fields)][protocol].add(timestamp)
         for connection, data in connections.items():
             attributes = self.prefetch_attributes_data(connection)
-            if len(data.keys()) == len(set(protocols[protocol] for protocol in data.keys())):
+            if len(data.keys()) == len(
+                {protocols[protocol] for protocol in data.keys()}
+            ):
                 network_connection_object = MISPObject('network-connection')
                 for object_relation, attribute in attributes.items():
                     network_connection_object.add_attribute(object_relation, **attribute)
@@ -141,8 +143,11 @@ class JoeParser():
                                                            'value': min(tuple(min(timestamp) for timestamp in data.values())),
                                                            'to_ids': False})
                 for protocol in data.keys():
-                    network_connection_object.add_attribute('layer{}-protocol'.format(protocols[protocol]),
-                                                            **{'type': 'text', 'value': protocol, 'to_ids': False})
+                    network_connection_object.add_attribute(
+                        f'layer{protocols[protocol]}-protocol',
+                        **{'type': 'text', 'value': protocol, 'to_ids': False},
+                    )
+
                 self.misp_event.add_object(**network_connection_object)
                 self.references[self.analysisinfo_uuid].append(dict(referenced_uuid=network_connection_object.uuid,
                                                                     relationship_type='initiates'))
@@ -152,14 +157,17 @@ class JoeParser():
                     for object_relation, attribute in attributes.items():
                         network_connection_object.add_attribute(object_relation, **attribute)
                     network_connection_object.add_attribute('first-packet-seen', **{'type': 'datetime', 'value': min(timestamps), 'to_ids': False})
-                    network_connection_object.add_attribute('layer{}-protocol'.format(protocols[protocol]), **{'type': 'text', 'value': protocol, 'to_ids': False})
+                    network_connection_object.add_attribute(
+                        f'layer{protocols[protocol]}-protocol',
+                        **{'type': 'text', 'value': protocol, 'to_ids': False},
+                    )
+
                     self.misp_event.add_object(**network_connection_object)
                     self.references[self.analysisinfo_uuid].append(dict(referenced_uuid=network_connection_object.uuid,
                                                                         relationship_type='initiates'))
 
     def parse_screenshot(self):
-        screenshotdata = self.data['behavior']['screenshotdata']
-        if screenshotdata:
+        if screenshotdata := self.data['behavior']['screenshotdata']:
             screenshotdata = screenshotdata['interesting']['$']
             attribute = {'type': 'attachment', 'value': 'screenshot.jpg',
                          'data': screenshotdata, 'disable_correlation': True,
@@ -176,7 +184,10 @@ class JoeParser():
                 process_object = MISPObject('process')
                 for feature, relation in process_object_fields.items():
                     process_object.add_attribute(relation, **{'type': 'text', 'value': general[feature], 'to_ids': False})
-                start_time = datetime.strptime('{} {}'.format(general['date'], general['time']), '%d/%m/%Y %H:%M:%S')
+                start_time = datetime.strptime(
+                    f"{general['date']} {general['time']}", '%d/%m/%Y %H:%M:%S'
+                )
+
                 process_object.add_attribute('start-time', **{'type': 'datetime', 'value': start_time, 'to_ids': False})
                 self.misp_event.add_object(**process_object)
                 for field, to_call in process_activities.items():
@@ -342,8 +353,7 @@ class JoeParser():
         return section_object
 
     def parse_network_interactions(self):
-        domaininfo = self.data['domaininfo']
-        if domaininfo:
+        if domaininfo := self.data['domaininfo']:
             for domain in domaininfo['domain']:
                 if domain['@ip'] != 'unknown':
                     domain_object = MISPObject('domain-ip')
@@ -353,23 +363,20 @@ class JoeParser():
                                                     **{'type': attribute_type, 'value': domain[key], 'to_ids': False})
                     self.misp_event.add_object(**domain_object)
                     reference = dict(referenced_uuid=domain_object.uuid, relationship_type='contacts')
-                    self.add_process_reference(domain['@targetid'], domain['@currentpath'], reference)
                 else:
                     attribute = MISPAttribute()
                     attribute.from_dict(**{'type': 'domain', 'value': domain['@name'], 'to_ids': False})
                     self.misp_event.add_attribute(**attribute)
                     reference = dict(referenced_uuid=attribute.uuid, relationship_type='contacts')
-                    self.add_process_reference(domain['@targetid'], domain['@currentpath'], reference)
-        ipinfo = self.data['ipinfo']
-        if ipinfo:
+                self.add_process_reference(domain['@targetid'], domain['@currentpath'], reference)
+        if ipinfo := self.data['ipinfo']:
             for ip in ipinfo['ip']:
                 attribute = MISPAttribute()
                 attribute.from_dict(**{'type': 'ip-dst', 'value': ip['@ip'], 'to_ids': False})
                 self.misp_event.add_attribute(**attribute)
                 reference = dict(referenced_uuid=attribute.uuid, relationship_type='contacts')
                 self.add_process_reference(ip['@targetid'], ip['@currentpath'], reference)
-        urlinfo = self.data['urlinfo']
-        if urlinfo:
+        if urlinfo := self.data['urlinfo']:
             for url in urlinfo['url']:
                 target_id = int(url['@targetid'])
                 current_path = url['@currentpath']
@@ -396,7 +403,15 @@ class JoeParser():
                     for field, mapping in regkey_object_mapping.items():
                         attribute_type, object_relation = mapping
                         registry_key.add_attribute(object_relation, **{'type': attribute_type, 'value': call[field], 'to_ids': False})
-                    registry_key.add_attribute('data-type', **{'type': 'text', 'value': 'REG_{}'.format(call['type'].upper()), 'to_ids': False})
+                    registry_key.add_attribute(
+                        'data-type',
+                        **{
+                            'type': 'text',
+                            'value': f"REG_{call['type'].upper()}",
+                            'to_ids': False,
+                        },
+                    )
+
                     self.misp_event.add_object(**registry_key)
                     self.references[process_uuid].append(dict(referenced_uuid=registry_key.uuid,
                                                               relationship_type=relationship))

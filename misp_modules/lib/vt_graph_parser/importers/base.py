@@ -58,21 +58,31 @@ def import_misp_graph(
 
     # Check if the event has been already computed in VirusTotal Graph. Otherwise
     # a new graph will be created.
-    if not graph_id:
-        graph = vt_graph_api.VTGraph(
-            api_key=vt_api_key, name=name, private=private,
-            user_editors=user_editors, user_viewers=user_viewers,
-            group_editors=group_editors, group_viewers=group_viewers)
-    else:
-        graph = vt_graph_api.VTGraph.load_graph(graph_id, vt_api_key)
+    graph = (
+        vt_graph_api.VTGraph.load_graph(graph_id, vt_api_key)
+        if graph_id
+        else vt_graph_api.VTGraph(
+            api_key=vt_api_key,
+            name=name,
+            private=private,
+            user_editors=user_editors,
+            user_viewers=user_viewers,
+            group_editors=group_editors,
+            group_viewers=group_viewers,
+        )
+    )
 
     attributes_to_add = [attr for attr in misp_attributes
                          if not graph.has_node(attr.value)]
 
-    total_expandable_attrs = max(sum(
-        1 for attr in attributes_to_add
-        if attr.type in vt_graph_api.Node.SUPPORTED_NODE_TYPES),
-        1)
+    total_expandable_attrs = max(
+        sum(
+            attr.type in vt_graph_api.Node.SUPPORTED_NODE_TYPES
+            for attr in attributes_to_add
+        ),
+        1,
+    )
+
 
     max_quotas_per_search = max(
         int(max_api_quotas / total_expandable_attrs), 1)

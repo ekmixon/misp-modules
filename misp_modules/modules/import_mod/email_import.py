@@ -66,6 +66,10 @@ def handler(q=False):
         extract_urls = True
 
     file_objects = []  # All possible file objects
+    zipped_files = ["doc", "docx", "dot", "dotx", "xls", "xlsx", "xlm", "xla",
+                    "xlc", "xlt", "xltx", "xlw", "ppt", "pptx", "pps", "ppsx",
+                    "pot", "potx", "potx", "sldx", "odt", "ods", "odp", "odg",
+                    "odf", "fodt", "fods", "fodp", "fodg", "ott", "uot"]
     # Get Attachments
     # Get file names of attachments
     for attachment_name, attachment in email_object.attachments:
@@ -74,20 +78,17 @@ def handler(q=False):
             attachment_name = 'NameMissing.txt'
 
         temp_filename = Path(attachment_name)
-        zipped_files = ["doc", "docx", "dot", "dotx", "xls", "xlsx", "xlm", "xla",
-                        "xlc", "xlt", "xltx", "xlw", "ppt", "pptx", "pps", "ppsx",
-                        "pot", "potx", "potx", "sldx", "odt", "ods", "odp", "odg",
-                        "odf", "fodt", "fods", "fodp", "fodg", "ott", "uot"]
         # Attempt to unzip the attachment and return its files
         if unzip and temp_filename.suffix[1:] not in zipped_files:
             try:
                 unzip_attachement(attachment_name, attachment, email_object, file_objects)
             except RuntimeError:  # File is encrypted with a password
                 if zip_pass_crack is True:
-                    password = test_zip_passwords(attachment, password_list)
-                    if password:
+                    if password := test_zip_passwords(
+                        attachment, password_list
+                    ):
                         unzip_attachement(attachment_name, attachment, email_object, file_objects, password)
-                    else:  # Inform the analyst that we could not crack password
+                    else:
                         f_object, main_object, sections = make_binary_objects(pseudofile=attachment, filename=attachment_name, standalone=False)
                         f_object.comment = "Encrypted Zip: Password could not be cracked from message"
                         file_objects.append(f_object)
@@ -128,8 +129,7 @@ def handler(q=False):
     objects = [email_object.to_json()]
     if file_objects:
         objects += [o.to_json() for o in file_objects if o]
-    r = {'results': {'Object': [json.loads(o) for o in objects]}}
-    return r
+    return {'results': {'Object': [json.loads(o) for o in objects]}}
 
 
 def unzip_attachement(filename, data, email_object, file_objects, password=None):
@@ -219,11 +219,9 @@ def get_zip_passwords(message):
             body.append(part.get_payload(decode=True).decode(charset, errors='ignore'))
         elif part.get_content_type() == 'text/html':
             html_parser = HTMLTextParser()
-            payload = part.get_payload(decode=True)
-            if payload:
+            if payload := part.get_payload(decode=True):
                 html_parser.feed(payload.decode(charset, errors='ignore'))
-                for text in html_parser.text_data:
-                    body.append(text)
+                body.extend(iter(html_parser.text_data))
     raw_text = "\n".join(body).strip()
 
     # Add subject to text corpus to parse
@@ -253,10 +251,7 @@ class HTMLTextParser(HTMLParser):
     """ Parse all text and data from HTML strings."""
     def __init__(self, text_data=None):
         HTMLParser.__init__(self)
-        if text_data is None:
-            self.text_data = []
-        else:
-            self.text_data = text_data
+        self.text_data = [] if text_data is None else text_data
 
     def handle_data(self, data):
         self.text_data.append(data)
@@ -266,10 +261,7 @@ class HTMLURLParser(HTMLParser):
     """ Parse all href targets from HTML strings."""
     def __init__(self, urls=None):
         HTMLParser.__init__(self)
-        if urls is None:
-            self.urls = []
-        else:
-            self.urls = urls
+        self.urls = [] if urls is None else urls
 
     def handle_starttag(self, tag, attrs):
         if tag == 'a':

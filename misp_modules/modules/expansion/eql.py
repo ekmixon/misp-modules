@@ -54,13 +54,20 @@ def handler(q=False):
     if attrType:
         eqlType = fieldmap[attrType]
         event_type = event_types[eqlType]
-        fullEql = "{} where {} == \"{}\"".format(event_type, eqlType, request[attrType])
+        fullEql = f'{event_type} where {eqlType} == \"{request[attrType]}\"'
     else:
         misperrors['error'] = "Unsupported attributes type"
         return misperrors
 
-    response = []
-    response.append({'types': ['comment'], 'categories': ['External analysis'], 'values': fullEql, 'comment': "Event EQL queries"})
+    response = [
+        {
+            'types': ['comment'],
+            'categories': ['External analysis'],
+            'values': fullEql,
+            'comment': "Event EQL queries",
+        }
+    ]
+
     return {'results': response}
 
 

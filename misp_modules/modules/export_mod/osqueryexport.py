@@ -29,7 +29,7 @@ moduleinfo = {'version': '1.0', 'author': 'Julien Bachmann, Hacknowledge',
 
 def handle_regkey(value):
     rep = {'HKCU': 'HKEY_USERS\\%', 'HKLM': 'HKEY_LOCAL_MACHINE'}
-    rep = dict((re.escape(k), v) for k, v in rep.items())
+    rep = {re.escape(k): v for k, v in rep.items()}
     pattern = re.compile("|".join(rep.keys()))
     value = pattern.sub(lambda m: rep[re.escape(m.group(0))], value)
     return 'SELECT * FROM registry WHERE path LIKE \'%s\';' % value
@@ -38,7 +38,7 @@ def handle_regkey(value):
 def handle_regkeyvalue(value):
     key, value = value.split('|')
     rep = {'HKCU': 'HKEY_USERS\\%', 'HKLM': 'HKEY_LOCAL_MACHINE'}
-    rep = dict((re.escape(k), v) for k, v in rep.items())
+    rep = {re.escape(k): v for k, v in rep.items()}
     pattern = re.compile("|".join(rep.keys()))
     key = pattern.sub(lambda m: rep[re.escape(m.group(0))], key)
     return 'SELECT * FROM registry WHERE path LIKE \'%s\' AND data LIKE \'%s\';' % (key, value)

@@ -67,7 +67,7 @@ class ShodanParser():
         for feature, mapping in self.ip_address_mapping.items():
             if query_results.get(feature):
                 attribute = {'value': query_results[feature]}
-                attribute.update(mapping)
+                attribute |= mapping
                 ip_address_attributes.append(attribute)
         if ip_address_attributes:
             ip_address_object = MISPObject('ip-api-address')
@@ -92,24 +92,23 @@ class ShodanParser():
             for feature, mapping in self.ip_port_mapping.items():
                 for value in query_results.get(feature, []):
                     attribute = {'value': value}
-                    attribute.update(mapping)
+                    attribute |= mapping
                     ip_port_object.add_attribute(**attribute)
             ip_port_object.add_reference(self.attribute.uuid, 'extends')
             self.misp_event.add_object(ip_port_object)
-        else:
-            if any(query_results.get(feature) for feature in ('domains', 'hostnames')):
-                domain_ip_object = MISPObject('domain-ip')
-                domain_ip_object.add_attribute(**self._get_source_attribute())
-                for feature in ('domains', 'hostnames'):
-                    for value in query_results[feature]:
-                        attribute = {
-                            'type': 'domain',
-                            'object_relation': 'domain',
-                            'value': value
-                        }
-                        domain_ip_object.add_attribute(**attribute)
-                domain_ip_object.add_reference(self.attribute.uuid, 'extends')
-                self.misp_event.add_object(domain_ip_object)
+        elif any(query_results.get(feature) for feature in ('domains', 'hostnames')):
+            domain_ip_object = MISPObject('domain-ip')
+            domain_ip_object.add_attribute(**self._get_source_attribute())
+            for feature in ('domains', 'hostnames'):
+                for value in query_results[feature]:
+                    attribute = {
+                        'type': 'domain',
+                        'object_relation': 'domain',
+                        'value': value
+                    }
+                    domain_ip_object.add_attribute(**attribute)
+            domain_ip_object.add_reference(self.attribute.uuid, 'extends')
+            self.misp_event.add_object(domain_ip_object)
 
         # Parse data within the "data" field
         if query_results.get('vulns'):
@@ -133,7 +132,7 @@ class ShodanParser():
                 for feature, mapping in self.vulnerability_mapping.items():
                     if vulnerability.get(feature):
                         attribute = {'value': vulnerability[feature]}
-                        attribute.update(mapping)
+                        attribute |= mapping
                         vulnerability_object.add_attribute(**attribute)
                 if vulnerability.get('references'):
                     for reference in vulnerability['references']:
@@ -177,20 +176,20 @@ class ShodanParser():
         for feature in ('serial', 'sig_alg', 'version'):
             if certificate.get(feature):
                 attribute = {'value': certificate[feature]}
-                attribute.update(self.x509_mapping[feature])
+                attribute |= self.x509_mapping[feature]
                 x509_object.add_attribute(**attribute)
         # Parse issuer and subject value
         for feature in ('issuer', 'subject'):
             if certificate.get(feature):
                 attribute_value = (f'{identifier}={value}' for identifier, value in certificate[feature].items())
                 attribute = {'value': f'/{"/".join(attribute_value)}'}
-                attribute.update(self.x509_mapping[feature])
+                attribute |= self.x509_mapping[feature]
                 x509_object.add_attribute(**attribute)
         # Parse datetime attributes
         for feature in ('expires', 'issued'):
             if certificate.get(feature):
                 attribute = {'value': datetime.strptime(certificate[feature], '%Y%m%d%H%M%SZ')}
-                attribute.update(self.x509_mapping[feature])
+                attribute |= self.x509_mapping[feature]
                 x509_object.add_attribute(**attribute)
         # Parse fingerprints
         if certificate.get('fingerprint'):
@@ -204,7 +203,7 @@ class ShodanParser():
         if certificate.get('pubkey'):
             for feature, value in certificate['pubkey'].items():
                 attribute = {'value': value}
-                attribute.update(self.x509_mapping[feature])
+                attribute |= self.x509_mapping[feature]
                 x509_object.add_attribute(**attribute)
         x509_object.add_reference(self.attribute.uuid, 'identifies')
         self.misp_event.add_object(x509_object)

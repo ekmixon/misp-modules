@@ -62,12 +62,12 @@ def handler(q=False):
                     queryDict[event_type] = {}
                 queryDict[event_type][attribute["value"]] = fieldmap[attribute["type"]]
     i = 0
-    for query in queryDict.keys():
-        response.write("{} where\n".format(query))
+    for query in queryDict:
+        response.write(f"{query} where\n")
         for value in queryDict[query].keys():
             if i != 0:
                 response.write(" or\n")
-            response.write("\t{} == \"{}\"".format(queryDict[query][value], value))
+            response.write(f'\t{queryDict[query][value]} == \"{value}\"')
             i += 1
 
     return {"response": [], "data": str(base64.b64encode(bytes(response.getvalue(), 'utf-8')), 'utf-8')}
@@ -80,13 +80,12 @@ def introspection():
     Output
         Dictionary of supported MISP attributes
     """
-    modulesetup = {
+    return {
         "responseType": "application/txt",
         "outputFileExtension": "txt",
         "userConfig": {},
-        "inputSource": []
+        "inputSource": [],
     }
-    return modulesetup
 
 
 def version():

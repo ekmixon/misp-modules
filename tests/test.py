@@ -23,23 +23,23 @@ class TestModules(unittest.TestCase):
         self.url = "http://127.0.0.1:6666/"
 
     def test_introspection(self):
-        response = requests.get(self.url + "modules")
+        response = requests.get(f"{self.url}modules")
         print(response.json())
         response.connection.close()
 
     def test_cve(self):
         with open('tests/bodycve.json', 'r') as f:
-            response = requests.post(self.url + "query", data=f.read())
+            response = requests.post(f"{self.url}query", data=f.read())
             print(response.json())
             response.connection.close()
 
     def test_dns(self):
         with open('tests/body.json', 'r') as f:
-            response = requests.post(self.url + "query", data=f.read())
+            response = requests.post(f"{self.url}query", data=f.read())
             print(response.json())
             response.connection.close()
         with open('tests/body_timeout.json', 'r') as f:
-            response = requests.post(self.url + "query", data=f.read())
+            response = requests.post(f"{self.url}query", data=f.read())
             print(response.json())
             response.connection.close()
 
@@ -49,26 +49,31 @@ class TestModules(unittest.TestCase):
             data = json.dumps({"module": "openiocimport",
                                "data": content.decode(),
                                })
-            response = requests.post(self.url + "query", data=data).json()
+            response = requests.post(f"{self.url}query", data=data).json()
             print(response)
 
-            print("OpenIOC :: {}".format(response))
+            print(f"OpenIOC :: {response}")
             values = [x["values"][0] for x in response["results"]]
             assert("mrxcls.sys" in values)
             assert("mdmcpq3.PNF" in values)
 
     @unittest.skip("Need Rewrite")
     def test_email_headers(self):
-        query = {"module": "email_import"}
-        query["config"] = {"unzip_attachments": None,
-                           "guess_zip_attachment_passwords": None,
-                           "extract_urls": None}
         message = get_base_email()
         text = """I am a test e-mail"""
         message.attach(MIMEText(text, 'plain'))
-        query['data'] = decode_email(message)
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": None,
+                "guess_zip_attachment_passwords": None,
+                "extract_urls": None,
+            },
+            'data': decode_email(message),
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         results = response.json()['results']
         values = [x["values"] for x in results]
         types = {}
@@ -108,10 +113,6 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_attachment_basic(self):
-        query = {"module": "email_import"}
-        query["config"] = {"unzip_attachments": None,
-                           "guess_zip_attachment_passwords": None,
-                           "extract_urls": None}
         message = get_base_email()
         text = """I am a test e-mail"""
         message.attach(MIMEText(text, 'plain'))
@@ -119,9 +120,18 @@ class TestModules(unittest.TestCase):
             eicar_mime = MIMEApplication(fp.read(), 'com')
             eicar_mime.add_header('Content-Disposition', 'attachment', filename="EICAR.com")
             message.attach(eicar_mime)
-        query['data'] = decode_email(message)
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": None,
+                "guess_zip_attachment_passwords": None,
+                "extract_urls": None,
+            },
+            'data': decode_email(message),
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         values = [x["values"] for x in response.json()['results']]
         self.assertIn('EICAR.com', values)
         for i in response.json()['results']:
@@ -133,10 +143,6 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_attachment_unpack(self):
-        query = {"module": "email_import"}
-        query["config"] = {"unzip_attachments": "true",
-                           "guess_zip_attachment_passwords": None,
-                           "extract_urls": None}
         message = get_base_email()
         text = """I am a test e-mail"""
         message.attach(MIMEText(text, 'plain'))
@@ -144,9 +150,18 @@ class TestModules(unittest.TestCase):
             eicar_mime = MIMEApplication(fp.read(), 'zip')
             eicar_mime.add_header('Content-Disposition', 'attachment', filename="EICAR.com.zip")
             message.attach(eicar_mime)
-        query['data'] = decode_email(message)
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": "true",
+                "guess_zip_attachment_passwords": None,
+                "extract_urls": None,
+            },
+            'data': decode_email(message),
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         values = [x["values"] for x in response.json()["results"]]
         self.assertIn('EICAR.com', values)
         self.assertIn('EICAR.com.zip', values)
@@ -167,10 +182,6 @@ class TestModules(unittest.TestCase):
     def test_email_dont_unpack_compressed_doc_attachments(self):
         """Ensures that compressed
         """
-        query = {"module": "email_import"}
-        query["config"] = {"unzip_attachments": "true",
-                           "guess_zip_attachment_passwords": None,
-                           "extract_urls": None}
         message = get_base_email()
         text = """I am a test e-mail"""
         message.attach(MIMEText(text, 'plain'))
@@ -178,9 +189,18 @@ class TestModules(unittest.TestCase):
             eicar_mime = MIMEApplication(fp.read(), 'zip')
             eicar_mime.add_header('Content-Disposition', 'attachment', filename="test.docx")
             message.attach(eicar_mime)
-        query['data'] = decode_email(message)
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": "true",
+                "guess_zip_attachment_passwords": None,
+                "extract_urls": None,
+            },
+            'data': decode_email(message),
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         values = [x["values"] for x in response.json()["results"]]
         self.assertIn('test.docx', values)
         types = {}
@@ -199,10 +219,6 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_attachment_unpack_with_password(self):
-        query = {"module": "email_import"}
-        query["config"] = {"unzip_attachments": "true",
-                           "guess_zip_attachment_passwords": 'true',
-                           "extract_urls": None}
         message = get_base_email()
         text = """I am a test e-mail"""
         message.attach(MIMEText(text, 'plain'))
@@ -210,9 +226,18 @@ class TestModules(unittest.TestCase):
             eicar_mime = MIMEApplication(fp.read(), 'zip')
             eicar_mime.add_header('Content-Disposition', 'attachment', filename="EICAR.com.zip")
             message.attach(eicar_mime)
-        query['data'] = decode_email(message)
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": "true",
+                "guess_zip_attachment_passwords": 'true',
+                "extract_urls": None,
+            },
+            'data': decode_email(message),
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         values = [x["values"] for x in response.json()["results"]]
         self.assertIn('EICAR.com', values)
         self.assertIn('EICAR.com.zip', values)
@@ -228,10 +253,6 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_attachment_password_in_body(self):
-        query = {"module": "email_import"}
-        query["config"] = {"unzip_attachments": "true",
-                           "guess_zip_attachment_passwords": 'true',
-                           "extract_urls": None}
         message = get_base_email()
         text = """I am a -> STRINGS <- test e-mail"""
         message.attach(MIMEText(text, 'plain'))
@@ -239,9 +260,18 @@ class TestModules(unittest.TestCase):
             eicar_mime = MIMEApplication(fp.read(), 'zip')
             eicar_mime.add_header('Content-Disposition', 'attachment', filename="EICAR.com.zip")
             message.attach(eicar_mime)
-        query['data'] = decode_email(message)
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": "true",
+                "guess_zip_attachment_passwords": 'true',
+                "extract_urls": None,
+            },
+            'data': decode_email(message),
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         values = [x["values"] for x in response.json()["results"]]
         self.assertIn('EICAR.com', values)
         for i in response.json()['results']:
@@ -252,10 +282,6 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_attachment_password_in_body_quotes(self):
-        query = {"module": "email_import"}
-        query["config"] = {"unzip_attachments": "true",
-                           "guess_zip_attachment_passwords": 'true',
-                           "extract_urls": None}
         message = get_base_email()
         text = """I am a test e-mail
         the password is "a long password".
@@ -267,9 +293,18 @@ class TestModules(unittest.TestCase):
             eicar_mime = MIMEApplication(fp.read(), 'zip')
             eicar_mime.add_header('Content-Disposition', 'attachment', filename="EICAR.com.zip")
             message.attach(eicar_mime)
-        query['data'] = decode_email(message)
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": "true",
+                "guess_zip_attachment_passwords": 'true',
+                "extract_urls": None,
+            },
+            'data': decode_email(message),
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         values = [x["values"] for x in response.json()["results"]]
         self.assertIn('EICAR.com', values)
         for i in response.json()['results']:
@@ -281,10 +316,6 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_attachment_password_in_html_body(self):
-        query = {"module": "email_import"}
-        query["config"] = {"unzip_attachments": "true",
-                           "guess_zip_attachment_passwords": 'true',
-                           "extract_urls": None}
         message = get_base_email()
         text = """I am a test e-mail
         the password is NOT "this string".
@@ -308,9 +339,18 @@ class TestModules(unittest.TestCase):
             eicar_mime = MIMEApplication(fp.read(), 'zip')
             eicar_mime.add_header('Content-Disposition', 'attachment', filename="EICAR.com.zip")
             message.attach(eicar_mime)
-        query['data'] = decode_email(message)
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": "true",
+                "guess_zip_attachment_passwords": 'true',
+                "extract_urls": None,
+            },
+            'data': decode_email(message),
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         values = [x["values"] for x in response.json()["results"]]
         self.assertIn('EICAR.com', values)
         for i in response.json()['results']:
@@ -322,10 +362,15 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_body_encoding(self):
-        query = {"module":"email_import"}
-        query["config"] = {"unzip_attachments": None,
-                           "guess_zip_attachment_passwords": None,
-                           "extract_urls": None}
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": None,
+                "guess_zip_attachment_passwords": None,
+                "extract_urls": None,
+            },
+        }
+
         filenames = os.listdir("tests/test_files/encodings")
         for fn in filenames:
             message = get_base_email()
@@ -336,24 +381,29 @@ class TestModules(unittest.TestCase):
                 message.attach(MIMEText(text, 'html', encoding[0]))
                 query['data'] = decode_email(message)
                 data = json.dumps(query)
-                response = requests.post(self.url + "query", data=data).json()
+                response = requests.post(f"{self.url}query", data=data).json()
                 self.assertNotIn('error', response, response.get('error', ""))
                 self.assertIn('results', response, "No server results found.")
 
 
     @unittest.skip("Need Rewrite")
     def test_email_header_proper_encoding(self):
-        query = {"module":"email_import"}
-        query["config"] = {"unzip_attachments": None,
-                           "guess_zip_attachment_passwords": None,
-                           "extract_urls": None}
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": None,
+                "guess_zip_attachment_passwords": None,
+                "extract_urls": None,
+            },
+        }
+
         filenames = os.listdir("tests/test_files/encodings")
-        for encoding in ['utf-8', 'utf-16', 'utf-32']:
-            message = get_base_email()
-            text = """I am a test e-mail
+        text = """I am a test e-mail
             the password is NOT "this string".
             That is all.
             """
+        for encoding in ['utf-8', 'utf-16', 'utf-32']:
+            message = get_base_email()
             message.attach(MIMEText(text, 'plain'))
             for hdr, hdr_val in message.items():
                 msg = message
@@ -361,7 +411,7 @@ class TestModules(unittest.TestCase):
                 msg.replace_header(hdr, Header(encoded_header, encoding))
                 query['data'] = decode_email(msg)
                 data = json.dumps(query)
-                response = requests.post(self.url + "query", data=data)
+                response = requests.post(f"{self.url}query", data=data)
                 results = response.json()['results']
                 values = []
                 for x in results:
@@ -408,17 +458,22 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_header_malformed_encoding(self):
-        query = {"module":"email_import"}
-        query["config"] = {"unzip_attachments": None,
-                           "guess_zip_attachment_passwords": None,
-                           "extract_urls": None}
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": None,
+                "guess_zip_attachment_passwords": None,
+                "extract_urls": None,
+            },
+        }
+
         filenames = os.listdir("tests/test_files/encodings")
-        for encoding in ['utf-8', 'utf-16', 'utf-32']:
-            message = get_base_email()
-            text = """I am a test e-mail
+        text = """I am a test e-mail
             the password is NOT "this string".
             That is all.
             """
+        for encoding in ['utf-8', 'utf-16', 'utf-32']:
+            message = get_base_email()
             message.attach(MIMEText(text, 'plain'))
             for hdr, hdr_val in message.items():
                 msg = message
@@ -429,7 +484,7 @@ class TestModules(unittest.TestCase):
                 query['data'] = message64
 
                 data = json.dumps(query)
-                response = requests.post(self.url + "query", data=data)
+                response = requests.post(f"{self.url}query", data=data)
                 results = response.json()['results']
                 values = []
                 for x in results:
@@ -476,10 +531,6 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_header_CJK_encoding(self):
-        query = {"module":"email_import"}
-        query["config"] = {"unzip_attachments": None,
-                           "guess_zip_attachment_passwords": None,
-                           "extract_urls": None}
         # filenames = os.listdir("tests/test_files/encodings")
         # for encoding in ['utf-8', 'utf-16', 'utf-32']:
         message = get_base_email()
@@ -491,9 +542,18 @@ class TestModules(unittest.TestCase):
         japanese_charset = "ビット及び8ビットの2バイト情報交換用符号化拡張漢字集合"
         jisx213 = Header(japanese_charset, 'euc_jisx0213')
         message.replace_header("Subject", jisx213)
-        query['data'] = decode_email(message)
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": None,
+                "guess_zip_attachment_passwords": None,
+                "extract_urls": None,
+            },
+            'data': decode_email(message),
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         # Parse Response
         RFC_format = '=?euc_jisx0213?b?pdOlw6XItdqk0zil06XDpcikzjKl0KWkpci+8MrzuPK0uc3RyeS55rK9s8jEpbTBu/q9uLnn?='
         for i in response.json()['results']:
@@ -504,10 +564,6 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_malformed_header_CJK_encoding(self):
-        query = {"module":"email_import"}
-        query["config"] = {"unzip_attachments": None,
-                           "guess_zip_attachment_passwords": None,
-                           "extract_urls": None}
         # filenames = os.listdir("tests/test_files/encodings")
         # for encoding in ['utf-8', 'utf-16', 'utf-32']:
         message = get_base_email()
@@ -522,9 +578,18 @@ class TestModules(unittest.TestCase):
         pat = re.compile(b'{{REPLACE}}')
         message_bytes = pat.sub(japanese_bytes, message.as_bytes())
         message64 = base64.b64encode(message_bytes).decode()
-        query['data'] = message64
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": None,
+                "guess_zip_attachment_passwords": None,
+                "extract_urls": None,
+            },
+            'data': message64,
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         # Parse Response
         RFC_format = '=?euc_jisx0213?b?pdOlw6XItdqk0zil06XDpcikzjKl0KWkpci+8MrzuPK0uc3RyeS55rK9s8jEpbTBu/q9uLnn?='
         for i in response.json()['results']:
@@ -535,10 +600,6 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_malformed_header_emoji_encoding(self):
-        query = {"module":"email_import"}
-        query["config"] = {"unzip_attachments": None,
-                           "guess_zip_attachment_passwords": None,
-                           "extract_urls": None}
         # filenames = os.listdir("tests/test_files/encodings")
         # for encoding in ['utf-8', 'utf-16', 'utf-32']:
         message = get_base_email()
@@ -553,9 +614,18 @@ class TestModules(unittest.TestCase):
         pat = re.compile(b'{{EMOJI}}')
         message_bytes = pat.sub(emoji_bytes, message.as_bytes())
         message64 = base64.b64encode(message_bytes).decode()
-        query['data'] = message64
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": None,
+                "guess_zip_attachment_passwords": None,
+                "extract_urls": None,
+            },
+            'data': message64,
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         # Parse Response
         RFC_format = "=?unknown-8bit?q?Emoji_Test_=F0=9F=91=8D_checking_this?="
         for i in response.json()['results']:
@@ -566,10 +636,6 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_attachment_emoji_filename(self):
-        query = {"module": "email_import"}
-        query["config"] = {"unzip_attachments": None,
-                           "guess_zip_attachment_passwords": None,
-                           "extract_urls": None}
         message = get_base_email()
         text = """I am a test e-mail"""
         message.attach(MIMEText(text, 'plain'))
@@ -579,9 +645,18 @@ class TestModules(unittest.TestCase):
                                       'attachment',
                                       filename="Emoji Test 👍 checking this")
             message.attach(eicar_mime)
-        query['data'] = decode_email(message)
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": None,
+                "guess_zip_attachment_passwords": None,
+                "extract_urls": None,
+            },
+            'data': decode_email(message),
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         values = [x["values"] for x in response.json()['results']]
         self.assertIn("Emoji Test 👍 checking this", values)
         for i in response.json()['results']:
@@ -594,10 +669,6 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_attachment_password_in_subject(self):
-        query = {"module": "email_import"}
-        query["config"] = {"unzip_attachments": "true",
-                           "guess_zip_attachment_passwords": 'true',
-                           "extract_urls": None}
         message = get_base_email()
         message.replace_header("Subject", 'I contain the -> "a long password" <- that is the password')
         text = """I am a test e-mail
@@ -610,9 +681,18 @@ class TestModules(unittest.TestCase):
             eicar_mime = MIMEApplication(fp.read(), 'zip')
             eicar_mime.add_header('Content-Disposition', 'attachment', filename="EICAR.com.zip")
             message.attach(eicar_mime)
-        query['data'] = decode_email(message)
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": "true",
+                "guess_zip_attachment_passwords": 'true',
+                "extract_urls": None,
+            },
+            'data': decode_email(message),
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         values = [x["values"] for x in response.json()["results"]]
         self.assertIn('EICAR.com', values)
         self.assertIn('I contain the -> "a long password" <- that is the password', values)
@@ -625,10 +705,6 @@ class TestModules(unittest.TestCase):
 
     @unittest.skip("Need Rewrite")
     def test_email_extract_html_body_urls(self):
-        query = {"module": "email_import"}
-        query["config"] = {"unzip_attachments": None,
-                           "guess_zip_attachment_passwords": None,
-                           "extract_urls": "true"}
         message = get_base_email()
         text = """I am a test e-mail
 
@@ -650,9 +726,18 @@ without modifying core components. The API is available via a simple REST API wh
 """
         message.attach(MIMEText(text, 'plain'))
         message.attach(MIMEText(html, 'html'))
-        query['data'] = decode_email(message)
+        query = {
+            "module": "email_import",
+            "config": {
+                "unzip_attachments": None,
+                "guess_zip_attachment_passwords": None,
+                "extract_urls": "true",
+            },
+            'data': decode_email(message),
+        }
+
         data = json.dumps(query)
-        response = requests.post(self.url + "query", data=data)
+        response = requests.post(f"{self.url}query", data=data)
         # print(response.json())
         values = [x["values"] for x in response.json()["results"]]
         self.assertIn("https://github.com/MISP/MISP", values)
@@ -669,8 +754,7 @@ without modifying core components. The API is available via a simple REST API wh
 
 
 def decode_email(message):
-    message64 = base64.b64encode(message.as_bytes()).decode()
-    return message64
+    return base64.b64encode(message.as_bytes()).decode()
 
 
 def get_base_email():

@@ -43,8 +43,21 @@ def handler(q=False):
                         print(para.text)
                         doc_content = doc_content + "\n" + para.text
         print(doc_content)
-        return {'results': [{'types': ['freetext'], 'values': doc_content, 'comment': ".docx-to-text from file " + filename},
-                            {'types': ['text'], 'values': doc_content, 'comment': ".docx-to-text from file " + filename}]}
+        return {
+            'results': [
+                {
+                    'types': ['freetext'],
+                    'values': doc_content,
+                    'comment': f".docx-to-text from file {filename}",
+                },
+                {
+                    'types': ['text'],
+                    'values': doc_content,
+                    'comment': f".docx-to-text from file {filename}",
+                },
+            ]
+        }
+
     except Exception as e:
         print(e)
         err = "Couldn't analyze file as .docx. Error was: " + str(e)

@@ -27,8 +27,15 @@ def handler(q=False):
         misperrors['error'] = "Link is missing"
         return misperrors
     enc_data = data.decode('ascii')
-    r = {'results': [{'types': mispattributes['output'], 'values': tocache, 'data': enc_data}]}
-    return r
+    return {
+        'results': [
+            {
+                'types': mispattributes['output'],
+                'values': tocache,
+                'data': enc_data,
+            }
+        ]
+    }
 
 
 def __archiveLink(archive_path, tocache):

@@ -60,14 +60,14 @@ def handler(q=False):
         # The API url changes based on the analysis link host name
         api_url = lastline_api.get_portal_url_from_task_link(analysis_link)
     except Exception as e:
-        misperrors["error"] = "Error parsing configuration: {}".format(e)
+        misperrors["error"] = f"Error parsing configuration: {e}"
         return misperrors
 
     # Parse the call parameters
     try:
         task_uuid = lastline_api.get_uuid_from_task_link(analysis_link)
     except (KeyError, ValueError) as e:
-        misperrors["error"] = "Error processing input parameters: {}".format(e)
+        misperrors["error"] = f"Error processing input parameters: {e}"
         return misperrors
 
     # Make the API calls
@@ -82,7 +82,7 @@ def handler(q=False):
             raise ValueError("Analysis report is empty.")
 
     except Exception as e:
-        misperrors["error"] = "Error issuing the API call: {}".format(e)
+        misperrors["error"] = f"Error issuing the API call: {e}"
         return misperrors
 
     # Parse and return

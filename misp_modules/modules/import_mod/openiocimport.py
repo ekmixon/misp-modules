@@ -42,17 +42,16 @@ def handler(q=False):
 
     pkg = openioc.load_openioc(package)
 
-    if q.get('config'):
-        if q['config'].get('not save ioc') == "0":
-            addFile = {"values": [q.get('filename')],
-                       "types": ['attachment'],
-                       "categories": ['Support Tool'],
-                       "data": q.get('data')}
-            # add tag
-            if q['config'].get('default tag') is not None:
-                addFile["tags"] = q['config']['default tag'].split(",")
-            # add file as attachment
-            r["results"].append(addFile)
+    if q.get('config') and q['config'].get('not save ioc') == "0":
+        addFile = {"values": [q.get('filename')],
+                   "types": ['attachment'],
+                   "categories": ['Support Tool'],
+                   "data": q.get('data')}
+        # add tag
+        if q['config'].get('default tag') is not None:
+            addFile["tags"] = q['config']['default tag'].split(",")
+        # add file as attachment
+        r["results"].append(addFile)
 
     # return all attributes
     for attrib in pkg.attributes:

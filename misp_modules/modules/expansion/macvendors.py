@@ -24,13 +24,15 @@ def handler(q=False):
     user_agent = request['config']['user-agent'] if request.get('config') and request['config'].get('user-agent') else default_user_agent
     r = requests.get(macvendors_api_url + mac, headers={'user-agent': user_agent})  # Real request
     if r.status_code == 200:  # OK (record found)
-        response = r.text
-        if response:
+        if response := r.text:
             return {'results': [{'types': mispattributes['output'], 'values': response}]}
     elif r.status_code == 404:  # Not found (not an error)
         return {'results': [{'types': mispattributes['output'], 'values': 'Not found'}]}
     else:  # Real error
-        misperrors['error'] = 'MacVendors API not accessible (HTTP ' + str(r.status_code) + ')'
+        misperrors[
+            'error'
+        ] = f'MacVendors API not accessible (HTTP {str(r.status_code)})'
+
         return misperrors['error']
 
 

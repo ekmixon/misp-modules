@@ -19,4 +19,4 @@ for file_ in files:
         status = "Valid syntax"
     except Exception as e:
         status = e
-    print("{}: {}".format(file_, status))
+    print(f"{file_}: {status}")

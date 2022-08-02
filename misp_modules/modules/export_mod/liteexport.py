@@ -47,10 +47,12 @@ def handler(q=False):
         attrs = evt['Attribute']
         for attr in attrs:
             if 'Internal reference' not in attr['category']:
-                liteAttr = {}
-                liteAttr['category'] = attr['category']
-                liteAttr['type'] = attr['type']
-                liteAttr['value'] = attr['value']
+                liteAttr = {
+                    'category': attr['category'],
+                    'type': attr['type'],
+                    'value': attr['value'],
+                }
+
                 liteEvent['Event']['Attribute'].append(liteAttr)
 
     return {'response': [],

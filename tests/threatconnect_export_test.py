@@ -14,14 +14,15 @@ class TestModules(unittest.TestCase):
         self.headers = {'Content-Type': 'application/json'}
         self.url = "http://127.0.0.1:6666/"
         self.module = "threat_connect_export"
-        input_event_path = "%s/test_files/misp_event.json" % os.path.dirname(os.path.realpath(__file__))
+        input_event_path = f"{os.path.dirname(os.path.realpath(__file__))}/test_files/misp_event.json"
+
         with open(input_event_path, "r") as ifile:
             self.event = json.load(ifile)
 
     def test_01_introspection(self):
         """Taken from test.py"""
         try:
-            response = requests.get(self.url + "modules")
+            response = requests.get(f"{self.url}modules")
             modules = [module["name"] for module in response.json()]
             assert self.module in modules
         finally:
@@ -39,7 +40,10 @@ class TestModules(unittest.TestCase):
         }
 
         try:
-            response = requests.post(self.url + "query", headers=self.headers, data=json.dumps(query))
+            response = requests.post(
+                f"{self.url}query", headers=self.headers, data=json.dumps(query)
+            )
+
             data = base64.b64decode(response.json()["data"]).decode("utf-8")
             csvfile = io.StringIO(data)
             reader = csv.DictReader(csvfile)

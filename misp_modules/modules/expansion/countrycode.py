@@ -27,12 +27,16 @@ def parse_country_code(extension):
         codes = requests.get("http://www.geognos.com/api/en/countries/info/all.json").json()
     except Exception:
         return "http://www.geognos.com/api/en/countries/info/all.json not reachable"
-    if not codes.get('StatusMsg') or not codes["StatusMsg"] == "OK":
+    if not codes.get('StatusMsg') or codes["StatusMsg"] != "OK":
         return 'Not able to get the countrycode references from http://www.geognos.com/api/en/countries/info/all.json'
-    for country in codes['Results'].values():
-        if country['CountryCodes']['tld'] == extension:
-            return country['Name']
-    return "Unknown"
+    return next(
+        (
+            country['Name']
+            for country in codes['Results'].values()
+            if country['CountryCodes']['tld'] == extension
+        ),
+        "Unknown",
+    )
 
 
 def handler(q=False):
@@ -46,8 +50,7 @@ def handler(q=False):
 
     # Check if it's a common, non country one
     val = common_tlds[ext] if ext in common_tlds.keys() else parse_country_code(ext)
-    r = {'results': [{'types': ['text'], 'values':[val]}]}
-    return r
+    return {'results': [{'types': ['text'], 'values':[val]}]}
 
 
 def introspection():

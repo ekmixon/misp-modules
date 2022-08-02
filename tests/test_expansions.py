@@ -68,8 +68,7 @@ class TestExpansions(unittest.TestCase):
         if 'results' not in data:
             return data
         for result in data['results']:
-            values = result['values']
-            if values:
+            if values := result['values']:
                 return values[0] if isinstance(values, list) else values
         return data['results'][0]['values']
 
@@ -420,11 +419,11 @@ class TestExpansions(unittest.TestCase):
         self.assertEqual(self.get_values(response), '1GXZ6v7FZzYBEnoRaG77SJxhu7QkvQmFuh')
 
     def test_ransomcoindb(self):
-        query = {"module": "ransomcoindb",
-                 "attributes": {"type": "btc",
-                                "value": "1ES14c7qLb5CYhLMUekctxLgc1FV2Ti9DA",
-                                "uuid": "ea89a33b-4ab7-4515-9f02-922a0bee333d"}}
         if 'ransomcoindb' not in self.configs:
+            query = {"module": "ransomcoindb",
+                     "attributes": {"type": "btc",
+                                    "value": "1ES14c7qLb5CYhLMUekctxLgc1FV2Ti9DA",
+                                    "uuid": "ea89a33b-4ab7-4515-9f02-922a0bee333d"}}
             response = self.misp_modules_post(query)
             self.assertEqual(self.get_errors(response), "Ransomcoindb API key is missing")
 
@@ -447,8 +446,8 @@ class TestExpansions(unittest.TestCase):
         module_name = "securitytrails"
         query_types = ('ip-src', 'domain')
         query_values = ('149.13.33.14', 'circl.lu')
-        results = ('circl.lu', 'ns4.eurodns.com')
         if module_name in self.configs:
+            results = ('circl.lu', 'ns4.eurodns.com')
             for query_type, query_value, result in zip(query_types, query_values, results):
                 query = {"module": module_name, query_type: query_value, "config": self.configs[module_name]}
                 response = self.misp_modules_post(query)
@@ -597,8 +596,8 @@ class TestExpansions(unittest.TestCase):
                 "value": "http://194.169.88.56:49151/.i"
             }
         )
-        results = ('whois', 'asn', 'file', 'virustotal-report')
         if module_name in self.configs:
+            results = ('whois', 'asn', 'file', 'virustotal-report')
             for attribute, result in zip(attributes, results):
                 query = {"module": module_name,
                          "attribute": attribute,
@@ -640,8 +639,8 @@ class TestExpansions(unittest.TestCase):
                 "value": "http://194.169.88.56:49151/.i"
             }
         )
-        results = ('domain-ip', 'asn', 'virustotal-report', 'virustotal-report')
         if module_name in self.configs:
+            results = ('domain-ip', 'asn', 'virustotal-report', 'virustotal-report')
             for attribute, result in zip(attributes, results):
                 query = {"module": module_name,
                          "attribute": attribute,
@@ -685,8 +684,8 @@ class TestExpansions(unittest.TestCase):
         query_types = ('domain', 'ip-src', 'md5', 'url', 'vulnerability')
         query_values = ('mediaget.com', '61.255.239.86', '474b9ccf5ab9d72ca8a333889bbb34f0',
                         'mediaget.com', 'CVE-2014-2601')
-        results = ('domain-ip', 'domain-ip', 'url', 'domain-ip', 'vulnerability')
         if module_name in self.configs:
+            results = ('domain-ip', 'domain-ip', 'url', 'domain-ip', 'vulnerability')
             for query_type, query_value, result in zip(query_types, query_values, results):
                 query = {"module": module_name,
                          "attribute": {"type": query_type,

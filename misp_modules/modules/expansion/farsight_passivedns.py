@@ -59,12 +59,8 @@ TYPE_TO_FEATURE = {
     "url": "Uniform Resource Locator",
     "whois-registrant-email": "email of a domain's registrant"
 }
-TYPE_TO_FEATURE.update(
-    dict.fromkeys(
-        ("ip-src", "ip-dst"),
-        "IP address"
-    )
-)
+TYPE_TO_FEATURE |= dict.fromkeys(("ip-src", "ip-dst"), "IP address")
+
 TYPE_TO_FEATURE.update(
     dict.fromkeys(
         ("email", "email-src", "email-dst"),
@@ -123,7 +119,7 @@ class FarsightDnsdbParser():
 
     def _parse_attribute(self, comment, feature, value):
         attribute = {'value': value, 'comment': comment, 'distribution': DEFAULT_DISTRIBUTION_SETTING}
-        attribute.update(self.passivedns_mapping[feature])
+        attribute |= self.passivedns_mapping[feature]
         return attribute
 
 
@@ -181,11 +177,7 @@ def parse_timestamp(str_date):
 
 
 def add_flex_queries(flex):
-    if not flex:
-        return False
-    if flex in ('True', 'true', True, '1', 1):
-        return True
-    return False
+    return flex in ('True', 'true', True, '1', 1) if flex else False
 
 
 def flex_queries(client, lookup_args, name):
@@ -204,26 +196,21 @@ def flex_queries(client, lookup_args, name):
 
 def lookup_name(client, lookup_args, name, flex):
     response = {}
-    # RRSET = entries in the left-hand side of the domain name related labels
-    rrset_response = list(client.lookup_rrset(name, **lookup_args))
-    if rrset_response:
+    if rrset_response := list(client.lookup_rrset(name, **lookup_args)):
         response['rrset'] = rrset_response
-    # RDATA = entries on the right-hand side of the domain name related labels
-    rdata_response = list(client.lookup_rdata_name(name, **lookup_args))
-    if rdata_response:
+    if rdata_response := list(client.lookup_rdata_name(name, **lookup_args)):
         response['rdata'] = rdata_response
     if flex:
-        response.update(flex_queries(client, lookup_args, name))
+        response |= flex_queries(client, lookup_args, name)
     return response
 
 
 def lookup_ip(client, lookup_args, ip, flex):
     response = {}
-    res = list(client.lookup_rdata_ip(ip, **lookup_args))
-    if res:
+    if res := list(client.lookup_rdata_ip(ip, **lookup_args)):
         response['rdata'] = res
     if flex:
-        response.update(flex_queries(client, lookup_args, ip))
+        response |= flex_queries(client, lookup_args, ip)
     return response
 
 

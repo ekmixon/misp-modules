@@ -31,7 +31,16 @@ def handler(q=False):
     pdf_file = io.BytesIO(pdf_array)
     try:
         pdf_content = "\n\n".join(pdftotext.PDF(pdf_file))
-        return {'results': [{'types': ['freetext'], 'values': pdf_content, 'comment': "PDF-to-text from file " + filename}]}
+        return {
+            'results': [
+                {
+                    'types': ['freetext'],
+                    'values': pdf_content,
+                    'comment': f"PDF-to-text from file {filename}",
+                }
+            ]
+        }
+
     except Exception as e:
         print(e)
         err = "Couldn't analyze file as PDF. Error was: " + str(e)

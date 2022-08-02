@@ -40,9 +40,11 @@ def handler(q=False):
     html = stripUselessTags(html)
     markdown = convertHTML(html)
 
-    r = {'results': [{'types': mispattributes['output'],
-                      'values':[str(markdown)]}]}
-    return r
+    return {
+        'results': [
+            {'types': mispattributes['output'], 'values': [str(markdown)]}
+        ]
+    }
 
 
 def introspection():

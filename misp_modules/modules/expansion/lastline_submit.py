@@ -77,7 +77,7 @@ def handler(q=False):
         auth_data = lastline_api.LastlineAbstractClient.get_login_params_from_dict(config)
         api_url = config.get("url", lastline_api.DEFAULT_LL_ANALYSIS_API_URL)
     except Exception as e:
-        misperrors["error"] = "Error parsing configuration: {}".format(e)
+        misperrors["error"] = f"Error parsing configuration: {e}"
         return misperrors
 
     # Parse the call parameters
@@ -105,7 +105,7 @@ def handler(q=False):
                 raise ValueError("Input parameters do not specify either an URL or a file")
 
     except Exception as e:
-        misperrors["error"] = "Error processing input parameters: {}".format(e)
+        misperrors["error"] = f"Error processing input parameters: {e}"
         return misperrors
 
     # Make the API call
@@ -121,7 +121,7 @@ def handler(q=False):
             tags = ["workflow:state='incomplete'"]
 
     except Exception as e:
-        misperrors["error"] = "Error issuing the API call: {}".format(e)
+        misperrors["error"] = f"Error issuing the API call: {e}"
         return misperrors
 
     # Assemble and return

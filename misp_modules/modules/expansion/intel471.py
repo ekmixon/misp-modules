@@ -38,18 +38,19 @@ def handler(q=False):
         misperrors['error'] = "Unsupported attributes type"
         return misperrors
 
-    if (request.get('config')):
-        if (request['config'].get('email') is None) or (request['config'].get('authkey') is None):
-            misperrors['error'] = 'Intel 471 authentication is missing'
-            return misperrors
+    if (request.get('config')) and (
+        (request['config'].get('email') is None)
+        or (request['config'].get('authkey') is None)
+    ):
+        misperrors['error'] = 'Intel 471 authentication is missing'
+        return misperrors
 
     intel471 = PyIntel471(email=request['config'].get('email'), authkey=request['config'].get('authkey'))
     ioc_filters = intel471.iocs_filters(ioc=to_query)
     res = intel471.iocs(filters=ioc_filters)
     to_return = cleanup(res)
 
-    r = {'results': [{'types': mispattributes['output'], 'values': to_return}]}
-    return r
+    return {'results': [{'types': mispattributes['output'], 'values': to_return}]}
 
 
 def introspection():

@@ -66,17 +66,23 @@ def handler(q=False):
 
 def lookup_indicator(client, query):
     result = client.search_url(query)
-    log.debug('RESULTS: ' + json.dumps(result))
+    log.debug(f'RESULTS: {json.dumps(result)}')
     r = []
-    misp_comment = "{}: Enriched via the urlscan module".format(query)
+    misp_comment = f"{query}: Enriched via the urlscan module"
 
     # Determine if the page is reachable
     for request in result['data']['requests']:
-        if request['response'].get('failed'):
-            if request['response']['failed']['errorText']:
-                log.debug('The page could not load')
-                r.append(
-                    {'error': 'Domain could not be resolved: {}'.format(request['response']['failed']['errorText'])})
+        if (
+            request['response'].get('failed')
+            and request['response']['failed']['errorText']
+        ):
+            log.debug('The page could not load')
+            r.append(
+                {
+                    'error': f"Domain could not be resolved: {request['response']['failed']['errorText']}"
+                }
+            )
+
 
     if result.get('page'):
         if result['page'].get('domain'):
@@ -113,46 +119,44 @@ def lookup_indicator(client, query):
                       'values': misp_val,
                       'comment': misp_comment})
 
-    if result.get('stats'):
-        if result['stats'].get('malicious'):
-            log.debug('There is something in results > stats > malicious')
-            threat_list = set()
+    if result.get('stats') and result['stats'].get('malicious'):
+        log.debug('There is something in results > stats > malicious')
+        threat_list = set()
 
-            if 'matches' in result['meta']['processors']['gsb']['data']:
-                for item in result['meta']['processors']['gsb']['data']['matches']:
-                    if item['threatType']:
-                        threat_list.add(item['threatType'])
+        if 'matches' in result['meta']['processors']['gsb']['data']:
+            for item in result['meta']['processors']['gsb']['data']['matches']:
+                if item['threatType']:
+                    threat_list.add(item['threatType'])
 
-            threat_list = ', '.join(threat_list)
-            log.debug('threat_list values are: \'' + threat_list + '\'')
+        threat_list = ', '.join(threat_list)
+        log.debug('threat_list values are: \'' + threat_list + '\'')
 
-            if threat_list:
-                misp_val = '{} threat(s) detected'.format(threat_list)
-                r.append({'types': 'text',
-                          'categories': ['External analysis'],
-                          'values': misp_val,
-                          'comment': misp_comment})
+        if threat_list:
+            misp_val = f'{threat_list} threat(s) detected'
+            r.append({'types': 'text',
+                      'categories': ['External analysis'],
+                      'values': misp_val,
+                      'comment': misp_comment})
 
-    if result.get('lists'):
-        if result['lists'].get('urls'):
-            for url in result['lists']['urls']:
-                url = url.lower()
-                if 'office' in url:
-                    misp_val = "Possible Office-themed phishing"
-                elif 'o365' in url or '0365' in url:
-                    misp_val = "Possible O365-themed phishing"
-                elif 'microsoft' in url:
-                    misp_val = "Possible Microsoft-themed phishing"
-                elif 'paypal' in url:
-                    misp_val = "Possible PayPal-themed phishing"
-                elif 'onedrive' in url:
-                    misp_val = "Possible OneDrive-themed phishing"
-                elif 'docusign' in url:
-                    misp_val = "Possible DocuSign-themed phishing"
-                r.append({'types': 'text',
-                          'categories': ['External analysis'],
-                          'values': misp_val,
-                          'comment': misp_comment})
+    if result.get('lists') and result['lists'].get('urls'):
+        for url in result['lists']['urls']:
+            url = url.lower()
+            if 'office' in url:
+                misp_val = "Possible Office-themed phishing"
+            elif 'o365' in url or '0365' in url:
+                misp_val = "Possible O365-themed phishing"
+            elif 'microsoft' in url:
+                misp_val = "Possible Microsoft-themed phishing"
+            elif 'paypal' in url:
+                misp_val = "Possible PayPal-themed phishing"
+            elif 'onedrive' in url:
+                misp_val = "Possible OneDrive-themed phishing"
+            elif 'docusign' in url:
+                misp_val = "Possible DocuSign-themed phishing"
+            r.append({'types': 'text',
+                      'categories': ['External analysis'],
+                      'values': misp_val,
+                      'comment': misp_comment})
 
     if result.get('task'):
         if result['task'].get('reportURL'):
@@ -195,15 +199,15 @@ class urlscanAPI():
         self.uuid = uuid
 
     def request(self, query):
-        log.debug('From request function with the parameter: ' + query)
+        log.debug(f'From request function with the parameter: {query}')
         payload = {'url': query}
         headers = {'API-Key': self.key,
                    'Content-Type': "application/json",
                    'Cache-Control': "no-cache"}
 
         # Troubleshooting problems with initial search request
-        log.debug('PAYLOAD: ' + json.dumps(payload))
-        log.debug('HEADERS: ' + json.dumps(headers))
+        log.debug(f'PAYLOAD: {json.dumps(payload)}')
+        log.debug(f'HEADERS: {json.dumps(headers)}')
 
         search_url_string = "https://urlscan.io/api/v1/scan/"
         response = requests.request("POST",
@@ -221,7 +225,7 @@ class urlscanAPI():
 
         # Any other status code
         if response.status_code != 200:
-            raise Exception('HTTP Error ' + str(response.status_code))
+            raise Exception(f'HTTP Error {str(response.status_code)}')
 
         if response.text:
             response = json.loads(response.content.decode("utf-8"))
@@ -236,27 +240,24 @@ class urlscanAPI():
             # Normal response string with 200 status code
             normal_response_string = '"status": 200'
 
-            results_url_string = "https://urlscan.io/api/v1/result/" + self.uuid
-            log.debug('Results URL: ' + results_url_string)
+            results_url_string = f"https://urlscan.io/api/v1/result/{self.uuid}"
+            log.debug(f'Results URL: {results_url_string}')
 
-            # Need to wait for results to process and check if they are valid
-            tries = 10
-            while tries >= 0:
+            for _ in range(10, -1, -1):
                 results = requests.request("GET", results_url_string)
                 log.debug('Made a GET request')
                 results = results.content.decode("utf-8")
-                # checking if there is a 404 status code and no available resources
-                if null_response_string in results and \
-                        redirect_string not in results and \
-                        normal_response_string not in results:
-                    log.debug('Results not processed. Please check again later.')
-                    time.sleep(3)
-                    tries -= 1
-                else:
+                if (
+                    null_response_string not in results
+                    or redirect_string in results
+                    or normal_response_string in results
+                ):
                     return json.loads(results)
 
+                log.debug('Results not processed. Please check again later.')
+                time.sleep(3)
             raise Exception('Results contained a 404 status error and could not be processed.')
 
     def search_url(self, query):
-        log.debug('From search_url with parameter: ' + query)
+        log.debug(f'From search_url with parameter: {query}')
         return self.request(query)

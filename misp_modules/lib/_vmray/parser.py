@@ -81,8 +81,7 @@ class DomainArtifact(Artifact):
         value = self.domain
         comment = ", ".join(self.sources) if self.sources else None
 
-        attr = Attribute(type="domain", value=value, comment=comment)
-        yield attr
+        yield Attribute(type="domain", value=value, comment=comment)
 
     def to_misp_object(self, tag: bool) -> MISPObject:
         obj = MISPObject(name="domain-ip")
@@ -107,10 +106,11 @@ class DomainArtifact(Artifact):
         self.classifications = merge_lists(self.classifications, other.classifications)
 
     def __eq__(self, other: Artifact) -> bool:
-        if not isinstance(other, DomainArtifact):
-            return NotImplemented
-
-        return self.domain == other.domain
+        return (
+            self.domain == other.domain
+            if isinstance(other, DomainArtifact)
+            else NotImplemented
+        )
 
 
 @dataclass
@@ -160,10 +160,11 @@ class EmailArtifact(Artifact):
         self.classifications = merge_lists(self.classifications, other.classifications)
 
     def __eq__(self, other: Artifact) -> bool:
-        if not isinstance(other, EmailArtifact):
-            return NotImplemented
-
-        return self.sender == other.sender and self.subject == other.subject
+        return (
+            self.sender == other.sender and self.subject == other.subject
+            if isinstance(other, EmailArtifact)
+            else NotImplemented
+        )
 
 
 @dataclass
@@ -184,20 +185,17 @@ class FileArtifact(Artifact):
         comment = f"File operations: {operations}"
 
         for filename in self.filenames:
-            attr = Attribute(type="filename", value=filename, comment=comment)
-            yield attr
-
+            yield Attribute(type="filename", value=filename, comment=comment)
         for hash_type in ("md5", "sha1", "sha256", "ssdeep", "imphash"):
             for filename in self.filenames:
                 value = getattr(self, hash_type)
                 if value is not None:
-                    attr = Attribute(
+                    yield Attribute(
                         type=f"filename|{hash_type}",
                         value=f"{filename}|{value}",
                         category="Payload delivery",
                         to_ids=True,
                     )
-                    yield attr
 
     def to_misp_object(self, tag: bool) -> MISPObject:
         obj = MISPObject(name="file")
@@ -251,10 +249,11 @@ class FileArtifact(Artifact):
         self.classifications = merge_lists(self.classifications, other.classifications)
 
     def __eq__(self, other: Artifact) -> bool:
-        if not isinstance(other, FileArtifact):
-            return NotImplemented
-
-        return self.sha256 == other.sha256
+        return (
+            self.sha256 == other.sha256
+            if isinstance(other, FileArtifact)
+            else NotImplemented
+        )
 
 
 @dataclass
@@ -267,8 +266,7 @@ class IpArtifact(Artifact):
         sources = ", ".join(self.sources)
         comment = f"Found in: {sources}"
 
-        attr = Attribute(type="ip-dst", value=self.ip, comment=comment)
-        yield attr
+        yield Attribute(type="ip-dst", value=self.ip, comment=comment)
 
     def to_misp_object(self, tag: bool) -> MISPObject:
         obj = MISPObject(name="ip-port")
@@ -290,10 +288,7 @@ class IpArtifact(Artifact):
         self.classifications = merge_lists(self.classifications, other.classifications)
 
     def __eq__(self, other: Artifact) -> bool:
-        if not isinstance(other, IpArtifact):
-            return NotImplemented
-
-        return self.ip == other.ip
+        return self.ip == other.ip if isinstance(other, IpArtifact) else NotImplemented
 
 
 @dataclass
@@ -306,8 +301,7 @@ class MutexArtifact(Artifact):
         operations = ", ".join(self.operations)
         comment = f"Operations: {operations}"
 
-        attr = Attribute(type="mutex", value=self.name, comment=comment)
-        yield attr
+        yield Attribute(type="mutex", value=self.name, comment=comment)
 
     def to_misp_object(self, tag: bool) -> MISPObject:
         obj = MISPObject(name="mutex")
@@ -338,10 +332,11 @@ class MutexArtifact(Artifact):
         self.classifications = merge_lists(self.classifications, other.classifications)
 
     def __eq__(self, other: Artifact) -> bool:
-        if not isinstance(other, MutexArtifact):
-            return NotImplemented
-
-        return self.name == other.name
+        return (
+            self.name == other.name
+            if isinstance(other, MutexArtifact)
+            else NotImplemented
+        )
 
 
 @dataclass
@@ -390,10 +385,11 @@ class ProcessArtifact(Artifact):
         self.classifications = merge_lists(self.classifications, other.classifications)
 
     def __eq__(self, other: Artifact) -> bool:
-        if not isinstance(other, ProcessArtifact):
-            return NotImplemented
-
-        return self.filename == other.filename and self.cmd_line == other.cmd_line
+        return (
+            self.filename == other.filename and self.cmd_line == other.cmd_line
+            if isinstance(other, ProcessArtifact)
+            else NotImplemented
+        )
 
 
 @dataclass
@@ -405,8 +401,7 @@ class RegistryArtifact(Artifact):
         operations = ", ".join(self.operations)
         comment = f"Operations: {operations}"
 
-        attr = Attribute(type="regkey", value=self.key, comment=comment)
-        yield attr
+        yield Attribute(type="regkey", value=self.key, comment=comment)
 
     def to_misp_object(self, tag: bool) -> MISPObject:
         obj = MISPObject(name="registry-key")
@@ -430,10 +425,11 @@ class RegistryArtifact(Artifact):
         self.operations = merge_lists(self.operations, other.operations)
 
     def __eq__(self, other: Artifact) -> bool:
-        if not isinstance(other, RegistryArtifact):
-            return NotImplemented
-
-        return self.key == other.key
+        return (
+            self.key == other.key
+            if isinstance(other, RegistryArtifact)
+            else NotImplemented
+        )
 
 
 @dataclass
@@ -447,8 +443,7 @@ class UrlArtifact(Artifact):
         operations = ", ".join(self.operations)
         comment = f"Operations: {operations}"
 
-        attr = Attribute(type="url", value=self.url, comment=comment)
-        yield attr
+        yield Attribute(type="url", value=self.url, comment=comment)
 
     def to_misp_object(self, tag: bool) -> MISPObject:
         obj = MISPObject(name="url")
@@ -485,10 +480,11 @@ class UrlArtifact(Artifact):
         self.operations = merge_lists(self.operations, other.operations)
 
     def __eq__(self, other: Artifact) -> bool:
-        if not isinstance(other, UrlArtifact):
-            return NotImplemented
-
-        return self.url == other.url and self.domain == other.domain
+        return (
+            self.url == other.url and self.domain == other.domain
+            if isinstance(other, UrlArtifact)
+            else NotImplemented
+        )
 
 
 @dataclass
@@ -578,18 +574,14 @@ class Summary(ReportParser):
                 return "clean"
             if 25 <= score <= 74:
                 return "suspicious"
-            if 75 <= score <= 100:
-                return "malicious"
-            return "n/a"
+            return "malicious" if 75 <= score <= 100 else "n/a"
         if isinstance(score, str):
             score = score.lower()
             if score in ("not_suspicious", "whitelisted"):
                 return "clean"
             if score == "blacklisted":
                 return "malicious"
-            if score in ("not_available", "unknown"):
-                return "n/a"
-            return score
+            return "n/a" if score in ("not_available", "unknown") else score
         return None
 
     def is_static_report(self) -> bool:

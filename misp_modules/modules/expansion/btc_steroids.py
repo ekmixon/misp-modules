@@ -33,7 +33,7 @@ def get_consumption(output=False):
         minute = str(-1)
         hour = str(-1)
     # Debug out for the console
-    print("Calls left this minute / hour: " + minute + " / " + hour)
+    print(f"Calls left this minute / hour: {minute} / {hour}")
     return minute, hour
 
 
@@ -96,10 +96,7 @@ def handler(q=False):
     if q is False:
         return False
     request = json.loads(q)
-    click = False
-    # This means the magnifying glass has been clicked
-    if request.get('persistent') == 1:
-        click = True
+    click = request.get('persistent') == 1
     # Otherwise the attribute was only hovered over
     if request.get('btc'):
         btc = request['btc']
@@ -113,16 +110,7 @@ def handler(q=False):
         # print(e)
         print(req.text)
         result_text = "Not a valid BTC address"
-        r = {
-            'results': [
-                {
-                    'types': ['text'],
-                    'values':[
-                        str(result_text)
-                    ]
-                }
-            ]
-        }
+        r = {'results': [{'types': ['text'], 'values': [result_text]}]}
         return r
 
     n_tx = jreq['n_tx']
@@ -131,7 +119,7 @@ def handler(q=False):
     sent = float(jreq['total_sent'] / 100000000)
     output = 'Balance:\t{0:.10f} BTC (+{1:.10f} BTC / -{2:.10f} BTC)'
     mprint(output.format(balance, rcvd, sent))
-    if click is False:
+    if not click:
         mprint("Transactions:\t" + str(n_tx) + "\t (previewing up to 5 most recent)")
     else:
         mprint("Transactions:\t" + str(n_tx))
@@ -139,24 +127,23 @@ def handler(q=False):
         mprint("======================================================================================")
     i = 0
     while i < n_tx:
-        if click is False:
+        if not click:
             try:
-                req = requests.get(blockchain_all.format(btc, "&limit=5&offset={}".format(i)))
+                req = requests.get(blockchain_all.format(btc, f"&limit=5&offset={i}"))
             except Exception as e:
                 # Lazy retry - cries for a function
                 print(e)
                 time.sleep(3)
-                req = requests.get(blockchain_all.format(btc, "&limit=5&offset={}".format(i)))
-            if n_tx > 5:
-                n_tx = 5
+                req = requests.get(blockchain_all.format(btc, f"&limit=5&offset={i}"))
+            n_tx = min(n_tx, 5)
         else:
             try:
-                req = requests.get(blockchain_all.format(btc, "&limit=50&offset={}".format(i)))
+                req = requests.get(blockchain_all.format(btc, f"&limit=50&offset={i}"))
             except Exception as e:
                 # Lazy retry - cries for a function
                 print(e)
                 time.sleep(3)
-                req = requests.get(blockchain_all.format(btc, "&limit=50&offset={}".format(i)))
+                req = requests.get(blockchain_all.format(btc, f"&limit=50&offset={i}"))
         jreq = req.json()
         if jreq['txs']:
             for transactions in jreq['txs']:
@@ -176,7 +163,17 @@ def handler(q=False):
                         datetime = time.strftime("%d %b %Y %H:%M:%S %Z", time.localtime(int(transactions['time'])))
                         value = float(tx['prev_out']['value'] / 100000000)
                         u, e = convert(value, transactions['time'])
-                        mprint("#" + str(n_tx - i) + "\t" + str(datetime) + "\t-{0:10.8f} BTC {1:10.2f} USD\t{2:10.2f} EUR".format(value, u, e).rstrip('0'))
+                        mprint(
+                            f"#{str(n_tx - i)}"
+                            + "\t"
+                            + str(datetime)
+                            + "\t-{0:10.8f} BTC {1:10.2f} USD\t{2:10.2f} EUR".format(
+                                value, u, e
+                            ).rstrip(
+                                '0'
+                            )
+                        )
+
                         if script_old != tx['script']:
                             i += 1
                         else:
@@ -185,7 +182,15 @@ def handler(q=False):
                 if sum_counter > 1:
                     u, e = convert(sum, transactions['time'])
                     mprint("\t\t\t\t\t----------------------------------------------")
-                    mprint("#" + str(n_tx - i) + "\t\t\t\t  Sum:\t-{0:10.8f} BTC {1:10.2f} USD\t{2:10.2f} EUR\n".format(sum, u, e).rstrip('0'))
+                    mprint(
+                        f"#{str(n_tx - i)}"
+                        + "\t\t\t\t  Sum:\t-{0:10.8f} BTC {1:10.2f} USD\t{2:10.2f} EUR\n".format(
+                            sum, u, e
+                        ).rstrip(
+                            '0'
+                        )
+                    )
+
                 for tx in transactions['out']:
                     try:
                         addr_out = tx['addr']
@@ -199,20 +204,21 @@ def handler(q=False):
                         datetime = time.strftime("%d %b %Y %H:%M:%S %Z", time.localtime(int(transactions['time'])))
                         value = float(tx['value'] / 100000000)
                         u, e = convert(value, transactions['time'])
-                        mprint("#" + str(n_tx - i) + "\t" + str(datetime) + "\t {0:10.8f} BTC {1:10.2f} USD\t{2:10.2f} EUR".format(value, u, e).rstrip('0'))
-                        # i += 1
+                        mprint(
+                            f"#{str(n_tx - i)}"
+                            + "\t"
+                            + str(datetime)
+                            + "\t {0:10.8f} BTC {1:10.2f} USD\t{2:10.2f} EUR".format(
+                                value, u, e
+                            ).rstrip(
+                                '0'
+                            )
+                        )
+
+                                            # i += 1
                 i += 1
 
-    r = {
-        'results': [
-            {
-                'types': ['text'],
-                'values':[
-                    str(result_text)
-                ]
-            }
-        ]
-    }
+    r = {'results': [{'types': ['text'], 'values': [result_text]}]}
     # Debug output on the console
     print(result_text)
     # Unset the result for the next request

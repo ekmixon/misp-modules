@@ -166,7 +166,7 @@ def parse_and_insert_dnsdbflex(data: str):
                 o.add_attribute('rrtype', value=rrtype, distribution=0, comment='DNSDBFLEX import by cof2misp')
                 o.add_attribute('rrname', value=rrname, distribution=0, comment='DNSDBFLEX import by cof2misp')
             except Exception as ex:
-                print("could not create object. Reason: %s" % str(ex))
+                print(f"could not create object. Reason: {str(ex)}")
 
             #
             # add dnsdbflex entry to MISP object
@@ -198,12 +198,13 @@ def is_dnsdbflex(data: str) -> bool:
 
     try:
         j = ndjson.loads(data)
-        for line in j:
-            if not set(line.keys()) == {'rrname', 'rrtype'}:
-                return False            # shortcut. We assume it's not if a single line does not conform
-        return True
+        return all(set(line.keys()) == {'rrname', 'rrtype'} for line in j)
     except Exception as ex:
-        print("oops, this should not have happened. Maybe not an ndjson file? Reason: %s" % (str(ex),), file=sys.stderr)
+        print(
+            f"oops, this should not have happened. Maybe not an ndjson file? Reason: {str(ex)}",
+            file=sys.stderr,
+        )
+
         return False
 
 
@@ -235,8 +236,8 @@ def handler(q=False):
         else:
             return {'error': 'Could not find any valid COF input nor dnsdbflex input. Please have a loot at: https://datatracker.ietf.org/doc/draft-dulaunoy-dnsop-passive-dns-cof/'}
     except Exception as ex:
-        print("oops, got exception %s" % str(ex), file=sys.stderr)
-        return {'error': "Got exception %s" % str(ex)}
+        print(f"oops, got exception {str(ex)}", file=sys.stderr)
+        return {'error': f"Got exception {str(ex)}"}
 
 
 def introspection():

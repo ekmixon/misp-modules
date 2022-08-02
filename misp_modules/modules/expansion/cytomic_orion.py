@@ -55,15 +55,12 @@ class CytomicParser():
                     tokens = json.loads(access_token_response.text)
                     if 'access_token' in tokens:
                         return tokens['access_token']
-                    else:
-                        self.result = {'error': 'No token received.'}
-                        return
+                    self.result = {'error': 'No token received.'}
                 else:
                     self.result = {'error': 'No token_url, clientid or clientsecret supplied.'}
-                    return
             else:
                 self.result = {'error': 'No scope, grant_type, username or password supplied.'}
-                return
+            return
         except Exception:
             self.result = {'error': 'Unable to connect to token_url.'}
             return
@@ -90,12 +87,11 @@ class CytomicParser():
             query_endpoint_machines = endpoint_machines.format(md5=searchkey)
 
             # API calls
-            api_call_headers = {'Authorization': 'Bearer ' + self.token}
+            api_call_headers = {'Authorization': f'Bearer {self.token}'}
             result_query_endpoint_fileinformation = requests.get(query_endpoint_fileinformation, headers=api_call_headers, verify=False)
-            json_result_query_endpoint_fileinformation = json.loads(result_query_endpoint_fileinformation.text)
-
-            if json_result_query_endpoint_fileinformation:
-
+            if json_result_query_endpoint_fileinformation := json.loads(
+                result_query_endpoint_fileinformation.text
+            ):
                 cytomic_object = MISPObject('cytomic-orion-file')
 
                 cytomic_object.add_attribute('fileName', type='text', value=json_result_query_endpoint_fileinformation['fileName'])
@@ -115,10 +111,9 @@ class CytomicParser():
                         if query_machine_info and machine['muid']:
                             query_endpoint_machines_client = endpoint_machines_client.format(muid=machine['muid'])
                             result_endpoint_machines_client = requests.get(query_endpoint_machines_client, headers=api_call_headers, verify=False)
-                            json_result_endpoint_machines_client = json.loads(result_endpoint_machines_client.text)
-
-                            if json_result_endpoint_machines_client:
-
+                            if json_result_endpoint_machines_client := json.loads(
+                                result_endpoint_machines_client.text
+                            ):
                                 cytomic_machine_object = MISPObject('cytomic-orion-machine')
 
                                 clienttag = [{'name': json_result_endpoint_machines_client['clientName']}]
@@ -150,7 +145,10 @@ def handler(q=False):
     if not request.get('attribute') or not check_input_attribute(request['attribute']):
         return {'error': f'{standard_error_message}, which should contain at least a type, a value and an uuid.'}
     attribute = request['attribute']
-    if not any(input_type == attribute['type'] for input_type in mispattributes['input']):
+    if all(
+        input_type != attribute['type']
+        for input_type in mispattributes['input']
+    ):
         return {'error': 'Unsupported attribute type.'}
 
     if not request.get('config'):

@@ -62,7 +62,7 @@ class VulnerabilitiesParser():
             for feature in ('id', 'summary', 'Modified', 'Published', 'cvss'):
                 if vulnerability.get(feature):
                     attribute = {'value': vulnerability[feature]}
-                    attribute.update(self.vulnerability_mapping[feature])
+                    attribute |= self.vulnerability_mapping[feature]
                     vulnerability_object.add_attribute(**attribute)
             if vulnerability.get('Published'):
                 vulnerability_object.add_attribute(**{
@@ -76,7 +76,7 @@ class VulnerabilitiesParser():
                         if isinstance(value, dict):
                             value = value['title']
                         attribute = {'value': value}
-                        attribute.update(self.vulnerability_mapping[feature])
+                        attribute |= self.vulnerability_mapping[feature]
                         vulnerability_object.add_attribute(**attribute)
             vulnerability_object.add_reference(self.attribute['uuid'], 'related-to')
             self.misp_event.add_object(vulnerability_object)
@@ -113,12 +113,11 @@ def handler(q=False):
         "sort_dir": "DESC"
     }
     response = requests.post(url, json=params)
-    if response.status_code == 200:
-        vulnerabilities = response.json()['data']
-        if not vulnerabilities:
-            return {'error': 'No related vulnerability for this CPE.'}
-    else:
+    if response.status_code != 200:
         return {'error': 'API not accessible.'}
+    vulnerabilities = response.json()['data']
+    if not vulnerabilities:
+        return {'error': 'No related vulnerability for this CPE.'}
     parser = VulnerabilitiesParser(attribute)
     parser.parse_vulnerabilities(vulnerabilities)
     return parser.get_result()

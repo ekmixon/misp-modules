@@ -57,7 +57,7 @@ class DomainTools(object):
     def _add_value(self, value_type, value, comment):
         if value_type.get(value):
             if comment and comment not in value_type[value]:
-                value_type[value] += ' - {}'.format(comment)
+                value_type[value] += f' - {comment}'
         else:
             value_type[value] = comment or ''
         return value_type
@@ -86,26 +86,71 @@ class DomainTools(object):
     def dump(self):
         to_return = []
         if self.reg_mail:
-            for mail, comment in self.reg_mail.items():
-                to_return.append({'type': 'whois-registrant-email', 'values': [mail], 'comment': comment or ''})
+            to_return.extend(
+                {
+                    'type': 'whois-registrant-email',
+                    'values': [mail],
+                    'comment': comment or '',
+                }
+                for mail, comment in self.reg_mail.items()
+            )
+
         if self.reg_phone:
-            for phone, comment in self.reg_phone.items():
-                to_return.append({'type': 'whois-registrant-phone', 'values': [phone], 'comment': comment or ''})
+            to_return.extend(
+                {
+                    'type': 'whois-registrant-phone',
+                    'values': [phone],
+                    'comment': comment or '',
+                }
+                for phone, comment in self.reg_phone.items()
+            )
+
         if self.reg_name:
-            for name, comment in self.reg_name.items():
-                to_return.append({'type': 'whois-registrant-name', 'values': [name], 'comment': comment or ''})
+            to_return.extend(
+                {
+                    'type': 'whois-registrant-name',
+                    'values': [name],
+                    'comment': comment or '',
+                }
+                for name, comment in self.reg_name.items()
+            )
+
         if self.registrar:
-            for reg, comment in self.registrar.items():
-                to_return.append({'type': 'whois-registrar', 'values': [reg], 'comment': comment or ''})
+            to_return.extend(
+                {
+                    'type': 'whois-registrar',
+                    'values': [reg],
+                    'comment': comment or '',
+                }
+                for reg, comment in self.registrar.items()
+            )
+
         if self.creation_date:
-            for date, comment in self.creation_date.items():
-                to_return.append({'type': 'whois-creation-date', 'values': [date], 'comment': comment or ''})
+            to_return.extend(
+                {
+                    'type': 'whois-creation-date',
+                    'values': [date],
+                    'comment': comment or '',
+                }
+                for date, comment in self.creation_date.items()
+            )
+
         if self.domain_ip:
-            for ip, comment in self.domain_ip.items():
-                to_return.append({'types': ['ip-dst', 'ip-src'], 'values': [ip], 'comment': comment or ''})
+            to_return.extend(
+                {
+                    'types': ['ip-dst', 'ip-src'],
+                    'values': [ip],
+                    'comment': comment or '',
+                }
+                for ip, comment in self.domain_ip.items()
+            )
+
         if self.domain:
-            for domain, comment in self.domain.items():
-                to_return.append({'type': 'domain', 'values': [domain], 'comment': comment or ''})
+            to_return.extend(
+                {'type': 'domain', 'values': [domain], 'comment': comment or ''}
+                for domain, comment in self.domain.items()
+            )
+
         if self.freetext:
             to_return.append({'type': 'freetext', 'values': [self.freetext], 'comment': 'Freetext import'})
         if self.risk:
@@ -162,7 +207,11 @@ def domain_profile(domtools, to_query, values):
 
     if profile.get('server'):
         other_domains = profile['server']['other_domains']
-        values.add_ip(profile['server']['ip_address'], 'IP of {} (via DomainTools). Has {} other domains.'.format(to_query, other_domains))
+        values.add_ip(
+            profile['server']['ip_address'],
+            f'IP of {to_query} (via DomainTools). Has {other_domains} other domains.',
+        )
+
 
     if profile.get('registration'):
         if profile['registration'].get('created'):
@@ -179,7 +228,11 @@ def reputation(domtools, to_query, values):
     # NOTE: use that value in a tag when we will have attribute level tagging
     if rep and not rep.get('error'):
         reasons = ', '.join(rep['reasons'])
-        values.risk = [rep['risk_score'], 'Risk value of {} (via Domain Tools), Reasons: {}'.format(to_query, reasons)]
+        values.risk = [
+            rep['risk_score'],
+            f'Risk value of {to_query} (via Domain Tools), Reasons: {reasons}',
+        ]
+
     return values
 
 
@@ -187,9 +240,13 @@ def reverse_ip(domtools, to_query, values):
     rev_ip = domtools.reverse_ip(to_query)
     if rev_ip and not rev_ip.get('error'):
         ip_addresses = rev_ip['ip_addresses']
-        values.add_ip(ip_addresses['ip_address'], 'IP of {} (via DomainTools). Has {} other domains.'.format(to_query, ip_addresses['domain_count']))
+        values.add_ip(
+            ip_addresses['ip_address'],
+            f"IP of {to_query} (via DomainTools). Has {ip_addresses['domain_count']} other domains.",
+        )
+
         for d in ip_addresses['domain_names']:
-            values.add_domain(d, 'Other domain on {}.'.format(ip_addresses['ip_address']))
+            values.add_domain(d, f"Other domain on {ip_addresses['ip_address']}.")
     return values
 
 
@@ -199,7 +256,7 @@ def reverse_whois(domtools, to_query, values):
         misperrors['error'] = rev_whois['error']['message']
         return misperrors
     for d in rev_whois['domains']:
-        values.add_domain(d, 'Reverse domain related to {}.'.format(to_query))
+        values.add_domain(d, f'Reverse domain related to {to_query}.')
     return values
 
 
@@ -210,9 +267,13 @@ def host_domains(domtools, to_query, values):
         return misperrors
     ip_addresses = hostdom['ip_addresses']
     if to_query != ip_addresses['ip_address']:
-        values.add_ip(ip_addresses['ip_address'], 'IP of {} (via DomainTools). Has {} other domains.'.format(to_query, ip_addresses['domain_count']))
+        values.add_ip(
+            ip_addresses['ip_address'],
+            f"IP of {to_query} (via DomainTools). Has {ip_addresses['domain_count']} other domains.",
+        )
+
     for d in ip_addresses['domain_names']:
-        values.add_domain(d, 'Other domain on {}.'.format(ip_addresses['ip_address']))
+        values.add_domain(d, f"Other domain on {ip_addresses['ip_address']}.")
     return values
 
 
@@ -263,8 +324,7 @@ def handler(q=False):
         return misperrors
 
     values = DomainTools()
-    services = get_services(request)
-    if services:
+    if services := get_services(request):
         try:
             for s in services:
                 globals()[s](domtools, to_query, values)

@@ -45,15 +45,14 @@ def handler(q=False):
     log.debug(toquery)
     try:
         answer = reader.city(toquery)
-        stringmap = 'Continent=' + str(answer.continent.name) + ', Country=' + str(answer.country.name) + ', Subdivision=' + str(answer.subdivisions.most_specific.name) + ', City=' + str(answer.city.name)
+        stringmap = f'Continent={str(answer.continent.name)}, Country={str(answer.country.name)}, Subdivision={str(answer.subdivisions.most_specific.name)}, City={str(answer.city.name)}'
+
 
     except Exception as e:
         misperrors['error'] = f"GeoIP resolving error: {e}"
         return misperrors
 
-    r = {'results': [{'types': mispattributes['output'], 'values': stringmap}]}
-
-    return r
+    return {'results': [{'types': mispattributes['output'], 'values': stringmap}]}
 
 
 def introspection():

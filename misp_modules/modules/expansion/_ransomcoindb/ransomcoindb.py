@@ -14,19 +14,22 @@ __version__ = 0.1
 
 
 baseurl = "https://ransomcoindb.concinnity-risks.com/api/v1/"
-user_agent = "ransomcoindb client via python-requests/%s" % requests.__version__
+user_agent = f"ransomcoindb client via python-requests/{requests.__version__}"
 
-urls = {'BTC': {'btc': baseurl + 'bin2btc/',
-                'md5': baseurl + 'bin2btc/md5/',
-                'sha1': baseurl + 'bin2btc/sha1/',
-                'sha256': baseurl + 'bin2btc/sha256/',
-                },
-        'XMR': {'xmr': baseurl + 'bin2crypto/XMR/',
-                'md5': baseurl + 'bin2crypto/XMR/md5/',
-                'sha1': baseurl + 'bin2crypto/XMR/sha1/',
-                'sha256': baseurl + 'bin2crypto/XMR/sha256/',
-                }
-        }
+urls = {
+    'BTC': {
+        'btc': f'{baseurl}bin2btc/',
+        'md5': f'{baseurl}bin2btc/md5/',
+        'sha1': f'{baseurl}bin2btc/sha1/',
+        'sha256': f'{baseurl}bin2btc/sha256/',
+    },
+    'XMR': {
+        'xmr': f'{baseurl}bin2crypto/XMR/',
+        'md5': f'{baseurl}bin2crypto/XMR/md5/',
+        'sha1': f'{baseurl}bin2crypto/XMR/sha1/',
+        'sha256': f'{baseurl}bin2crypto/XMR/sha256/',
+    },
+}
 
 
 def get_data_by(coin: str, key: str, value: str, api_key: str):
@@ -38,8 +41,11 @@ def get_data_by(coin: str, key: str, value: str, api_key: str):
 
     # pprint.pprint("api-key: %s" % api_key)
 
-    headers = {'x-api-key': api_key, 'content-type': 'application/json'}
-    headers.update({'User-Agent': user_agent})
+    headers = {
+        'x-api-key': api_key,
+        'content-type': 'application/json',
+        'User-Agent': user_agent,
+    }
 
     # check first if valid:
     valid_coins = ['BTC', 'XMR']
@@ -50,17 +56,19 @@ def get_data_by(coin: str, key: str, value: str, api_key: str):
     try:
 
         url = urls[coin.upper()][key]
-        logging.debug("url = %s" % url)
+        logging.debug(f"url = {url}")
         if not url:
             logging.error("Could not find a valid coin/key combination. Must be  a valid coin (i.e. from %r) and one of: %r" % (valid_coins, valid_keys))
             return None
-        r = requests.get(url + "%s" % (value), headers=headers)
+        r = requests.get(url + f"{value}", headers=headers)
     except Exception as ex:
-        logging.error("could not fetch from the service. Error: %s" % str(ex))
+        logging.error(f"could not fetch from the service. Error: {str(ex)}")
 
     if r.status_code != 200:
-        logging.error("could not fetch from the service. Status code: %s" %
-                      r.status_code)
+        logging.error(
+            f"could not fetch from the service. Status code: {r.status_code}"
+        )
+
     return r.json()
 
 

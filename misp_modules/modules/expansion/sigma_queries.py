@@ -31,8 +31,7 @@ def handler(q=False):
         backend = getBackend(t)(config, {'rulecomment': False})
         try:
             parser.generate(backend)
-            result = backend.finalize()
-            if result:
+            if result := backend.finalize():
                 results.append(result)
                 targets.append(t)
         except Exception:

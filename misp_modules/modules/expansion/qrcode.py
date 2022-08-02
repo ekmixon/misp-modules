@@ -57,7 +57,16 @@ def handler(q=False):
                         if debug:
                             print(debug_prefix + address)
                             print(debug_prefix + amount)
-                        return {'results': [{'types': ['btc'], 'values': address, 'comment': "BTC: " + amount + " from file " + filename}]}
+                        return {
+                            'results': [
+                                {
+                                    'types': ['btc'],
+                                    'values': address,
+                                    'comment': f"BTC: {amount} from file {filename}",
+                                }
+                            ]
+                        }
+
                     except Exception as e:
                         print(e)
                 else:
@@ -68,12 +77,30 @@ def handler(q=False):
                     url = result
                     if debug:
                         print(debug_prefix + url)
-                    return {'results': [{'types': ['url'], 'values': url, 'comment': "from QR code of file " + filename}]}
+                    return {
+                        'results': [
+                            {
+                                'types': ['url'],
+                                'values': url,
+                                'comment': f"from QR code of file {filename}",
+                            }
+                        ]
+                    }
+
                 except Exception as e:
                     print(e)
             else:
                 try:
-                    return {'results': [{'types': ['text'], 'values': result, 'comment': "from QR code of file " + filename}]}
+                    return {
+                        'results': [
+                            {
+                                'types': ['text'],
+                                'values': result,
+                                'comment': f"from QR code of file {filename}",
+                            }
+                        ]
+                    }
+
                 except Exception as e:
                     print(e)
     misperrors['error'] = "Couldn't decode QR code in attachment."

@@ -51,12 +51,13 @@ def handler(q=False):
     if 'data' not in request:
         return False
 
-    config = {}
+    config = {
+        config_item: request['config'].get(config_item)
+        for config_item in moduleconfig
+        if (request.get('config'))
+        and (request['config'].get(config_item) is not None)
+    }
 
-    # Construct config object for reportlab_generator
-    for config_item in moduleconfig:
-        if (request.get('config')) and (request['config'].get(config_item) is not None):
-            config[config_item] = request['config'].get(config_item)
 
     for evt in request['data']:
         misp_event = MISPEvent()

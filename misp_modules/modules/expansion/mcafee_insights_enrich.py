@@ -67,7 +67,7 @@ class MVAPI():
         else:
             self.logger.info('Successful authenticated.')
             access_token = res.json()['access_token']
-            headers['Authorization'] = 'Bearer ' + access_token
+            headers['Authorization'] = f'Bearer {access_token}'
             self.session.headers = headers
 
     def search_ioc(self):
@@ -76,7 +76,7 @@ class MVAPI():
             'filter[value]': self.attribute.value,
             'fields': 'id, type, value, coverage, uid, is_coat, is_sdb_dirty, category, comment, campaigns, threat, prevalence'
         }
-        res = self.session.get(self.base_url + '/insights/v2/iocs', params=filters)
+        res = self.session.get(f'{self.base_url}/insights/v2/iocs', params=filters)
 
         if res.ok:
             if len(res.json()['data']) == 0:
@@ -91,16 +91,13 @@ class MVAPI():
 
     def prep_result(self, ioc):
         res = ioc['data'][0]
-        results = []
-
         # Parse out Attribute Category
         category_attr = {
             'type': 'text',
             'object_relation': 'text',
             'value': 'Attribute Category: {0}'.format(res['attributes']['category'])
         }
-        results.append(category_attr)
-
+        results = [category_attr]
         # Parse out Attribute Comment
         comment_attr = {
             'type': 'text',
@@ -125,13 +122,9 @@ class MVAPI():
         }
         results.append(cover_attr)
 
-        # Parse our targeted countries
-        countries_dict = []
         countries = res['attributes']['prevalence']['countries']
 
-        for country in countries:
-            countries_dict.append(country['iso_code'])
-
+        countries_dict = [country['iso_code'] for country in countries]
         country_attr = {
             'type': 'text',
             'object_relation': 'text',
@@ -139,13 +132,9 @@ class MVAPI():
         }
         results.append(country_attr)
 
-        # Parse out targeted sectors
-        sectors_dict = []
         sectors = res['attributes']['prevalence']['sectors']
 
-        for sector in sectors:
-            sectors_dict.append(sector['sector'])
-
+        sectors_dict = [sector['sector'] for sector in sectors]
         sector_attr = {
             'type': 'text',
             'object_relation': 'text',

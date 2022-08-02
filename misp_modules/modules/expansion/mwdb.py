@@ -91,9 +91,12 @@ def handler(q=False):
                 misp_info = misp_event["Event"]["info"]
                 if "Tag" in misp_event["Event"]:
                     tags = misp_event["Event"]["Tag"]
-                    for tag in tags:
-                        if "misp-galaxy" not in tag["name"]:
-                            mwdb_tags.append(tag["name"])
+                    mwdb_tags.extend(
+                        tag["name"]
+                        for tag in tags
+                        if "misp-galaxy" not in tag["name"]
+                    )
+
         if include_tags_attribute:
             sys.path.append(pymisp_keys_file)
             from keys import misp_url, misp_key, misp_verifycert
@@ -102,9 +105,12 @@ def handler(q=False):
             if "Attribute" in misp_attribute:
                 if "Tag" in misp_attribute["Attribute"]:
                     tags = misp_attribute["Attribute"]["Tag"]
-                    for tag in tags:
-                        if "misp-galaxy" not in tag["name"]:
-                            mwdb_tags.append(tag["name"])
+                    mwdb_tags.extend(
+                        tag["name"]
+                        for tag in tags
+                        if "misp-galaxy" not in tag["name"]
+                    )
+
                 misp_attribute_comment = misp_attribute["Attribute"]["comment"]
     except Exception:
         misperrors['error'] = "Unable to read PyMISP (keys.py) configuration file"
@@ -120,17 +126,28 @@ def handler(q=False):
         for tag in mwdb_tags:
             file_object.add_tag(tag)
         if len(misp_attribute_comment) < 1:
-            misp_attribute_comment = "MISP attribute {}".format(misp_attribute_uuid)
+            misp_attribute_comment = f"MISP attribute {misp_attribute_uuid}"
         file_object.add_comment(misp_attribute_comment)
         if len(misp_event) > 0:
-            file_object.add_comment("Fetched from event {} - {}".format(misp_event_id, misp_info))
-        mwdb_link = request["config"].get("mwdb_url").replace("/api", "/file/") + "{}".format(file_object.md5)
+            file_object.add_comment(f"Fetched from event {misp_event_id} - {misp_info}")
+        mwdb_link = (
+            request["config"].get("mwdb_url").replace("/api", "/file/")
+            + f"{file_object.md5}"
+        )
+
     except Exception:
         misperrors['error'] = "Unable to send sample to MWDB instance"
         return misperrors
 
-    r = {'results': [{'types': 'link', 'values': mwdb_link, 'comment': 'Link to MWDB sample'}]}
-    return r
+    return {
+        'results': [
+            {
+                'types': 'link',
+                'values': mwdb_link,
+                'comment': 'Link to MWDB sample',
+            }
+        ]
+    }
 
 
 def introspection():

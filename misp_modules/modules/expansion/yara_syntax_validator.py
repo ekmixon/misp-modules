@@ -22,10 +22,9 @@ def handler(q=False):
         yara.compile(source=request.get('yara'))
         summary = ("Syntax valid")
     except Exception as e:
-        summary = ("Syntax error: " + str(e))
+        summary = f"Syntax error: {str(e)}"
 
-    r = {'results': [{'types': mispattributes['output'], 'values': summary}]}
-    return r
+    return {'results': [{'types': mispattributes['output'], 'values': summary}]}
 
 
 def introspection():

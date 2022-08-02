@@ -54,15 +54,18 @@ def handler(q=False):
     if not request.get('attribute') or not check_input_attribute(request['attribute']):
         return {'error': f'{standard_error_message}, which should contain at least a type, a value and an uuid.'}
     attribute = request['attribute']
-    if not any(input_type == attribute['type'] for input_type in mispattributes['input']):
+    if all(
+        input_type != attribute['type']
+        for input_type in mispattributes['input']
+    ):
         return {'error': 'Unsupported attribute type.'}
 
     attribute = MISPAttribute()
     attribute.from_dict(**request['attribute'])
     # Lists to accomodate multi-types attribute
-    types = list()
-    values = list()
-    results = list()
+    types = []
+    values = []
+    results = []
 
     if "|" in attribute.type:
         t_1, t_2 = attribute.type.split('|')
@@ -87,7 +90,7 @@ def handler(q=False):
                 r = CensysHosts(api_id, api_secret).view(value)
                 results.append(parse_response(r, attribute))
                 found = True
-            elif t == 'domain' or t == "hostname":
+            elif t in ['domain', "hostname"]:
                 # get ips
                 endpoint = CensysHosts(api_id, api_secret)
                 for r_list in endpoint.search(query=value, per_page=5, pages=1):
@@ -100,7 +103,7 @@ def handler(q=False):
                 results.append(parse_response(r, attribute))
                 found = True
         except CensysException as e:
-            misperrors['error'] = "ERROR: param {} / response: {}".format(value, e)
+            misperrors['error'] = f"ERROR: param {value} / response: {e}"
             return misperrors
 
     if not found:
@@ -139,8 +142,7 @@ def parse_response(censys_output, attribute):
             continue
         if serv.get('service_name').lower() == 'http' and serv.get('certificate', None):
             try:
-                cert = serv.get('certificate', None)
-                if cert:
+                if cert := serv.get('certificate', None):
                     # TODO switch to api_v2 once available
                     # use api_v1 as Certificates endpoint in api_v2 doesn't yet provide all the details
                     cert_details = CensysCertificates(api_id, api_secret).view(cert)
@@ -184,24 +186,22 @@ def parse_response(censys_output, attribute):
 # In case of multiple enrichment (ip and domain), we need to filter out similar objects
 # TODO: make it more granular
 def remove_duplicates(results):
-    # Only one enrichment was performed so no duplicate
     if len(results) == 1:
         return results[0]
-    else:
-        final_result = results[0]
-        for i,result in enumerate(results[1:]):
-            obj_l = results[i+1].get('Object', [])
-            for o2 in obj_l:
-                if o2['name'] == "asn":
-                    key = "asn"
-                elif o2['name'] == "ip-port":
-                    key = "ip"
-                elif o2['name'] == "x509":
-                    key = "x509-fingerprint-sha256"
-                elif o2['name'] == "geolocation":
-                    key = "latitude"
-                if not check_if_present(o2, key, final_result.get('Object', [])):
-                    final_result['Object'].append(o2)
+    final_result = results[0]
+    for i,result in enumerate(results[1:]):
+        obj_l = results[i+1].get('Object', [])
+        for o2 in obj_l:
+            if o2['name'] == "asn":
+                key = "asn"
+            elif o2['name'] == "ip-port":
+                key = "ip"
+            elif o2['name'] == "x509":
+                key = "x509-fingerprint-sha256"
+            elif o2['name'] == "geolocation":
+                key = "latitude"
+            if not check_if_present(o2, key, final_result.get('Object', [])):
+                final_result['Object'].append(o2)
 
     return final_result
 

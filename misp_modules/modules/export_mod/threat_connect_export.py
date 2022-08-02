@@ -98,13 +98,12 @@ def introspection():
     Output
         Dictionary of supported MISP attributes
     """
-    modulesetup = {
+    return {
         "responseType": "application/txt",
         "outputFileExtension": "csv",
         "userConfig": {},
-        "inputSource": []
+        "inputSource": [],
     }
-    return modulesetup
 
 
 def version():

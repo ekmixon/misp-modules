@@ -35,8 +35,7 @@ def handler(q=False):
 
     if request.get('config'):
         if request['config'].get('nameserver'):
-            nameservers = []
-            nameservers.append(request['config'].get('nameserver'))
+            nameservers = [request['config'].get('nameserver')]
             r.nameservers = nameservers
     else:
         r.nameservers = ['8.8.8.8']

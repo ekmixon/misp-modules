@@ -131,7 +131,7 @@ class ResultParser:
                 hostname = dns_query.get("hostname")
                 # Skip if it is an IP address
                 try:
-                    if hostname == "wpad" or hostname == "localhost":
+                    if hostname in ["wpad", "localhost"]:
                         continue
                     # Invalid hostname, e.g., hostname: ZLKKJRPY or 2.2.0.10.in-addr.arpa.
                     if "." not in hostname or hostname[-1] == ".":
@@ -163,13 +163,10 @@ class ResultParser:
 
                 method, path, http_version = http_conversation["url"].split(" ")
                 if http_conversation["dst_port"] == 80:
-                    uri = "http://{}{}".format(http_conversation["dst_host"], path)
+                    uri = f'http://{http_conversation["dst_host"]}{path}'
                 else:
-                    uri = "http://{}:{}{}".format(
-                        http_conversation["dst_host"],
-                        http_conversation["dst_port"],
-                        path
-                    )
+                    uri = f'http://{http_conversation["dst_host"]}:{http_conversation["dst_port"]}{path}'
+
                 o = pymisp.MISPObject(name="http-request")
                 o.add_attribute("host", http_conversation["dst_host"])
                 o.add_attribute("method", method)
@@ -182,7 +179,7 @@ class ResultParser:
         sandbox_type = "saas" if tau_clients.is_task_hosted(analysis_link) else "on-premise"
         o.add_attribute("score", result["score"])
         o.add_attribute("sandbox-type", sandbox_type)
-        o.add_attribute("{}-sandbox".format(sandbox_type), "vmware-nsx-defender")
+        o.add_attribute(f"{sandbox_type}-sandbox", "vmware-nsx-defender")
         o.add_attribute("permalink", analysis_link)
         misp_event.add_object(o)
 
@@ -201,12 +198,13 @@ class ResultParser:
         for techniques in result.get("activity_to_mitre_techniques", {}).values():
             for technique in techniques:
                 for misp_technique_id, misp_technique_name in self.techniques_galaxy.items():
-                    if technique["id"].casefold() in misp_technique_id.casefold():
-                        # If report details a sub-technique, trust the match
-                        # Otherwise trust it only if the MISP technique is not a sub-technique
-                        if "." in technique["id"] or "." not in misp_technique_id:
-                            misp_event.add_tag(misp_technique_name)
-                            break
+                    if technique[
+                        "id"
+                    ].casefold() in misp_technique_id.casefold() and (
+                        "." in technique["id"] or "." not in misp_technique_id
+                    ):
+                        misp_event.add_tag(misp_technique_name)
+                        break
         return misp_event
 
 
@@ -293,14 +291,14 @@ def _get_analysis_tags(
     for tag in response.get("analysis_tags", []):
         tag_header = None
         tag_type = tag["data"]["type"]
-        if tag_type == "av_family":
-            tag_header = "av-fam"
-        elif tag_type == "av_class":
+        if tag_type == "av_class":
             tag_header = "av-cls"
+        elif tag_type == "av_family":
+            tag_header = "av-fam"
         elif tag_type == "lastline_malware":
             tag_header = "nsx"
         if tag_header:
-            tags.add("{}:{}".format(tag_header, tag["data"]["value"]))
+            tags.add(f'{tag_header}:{tag["data"]["value"]}')
     return sorted(tags)
 
 
@@ -351,10 +349,10 @@ def _get_mitre_techniques_galaxy(misp_client: pymisp.PyMISP) -> Dict[str, str]:
         withCluster=True,
         pythonify=True,
     )
-    ret = {}
-    for cluster in galaxy_attack_patterns.clusters:
-        ret[cluster.value] = cluster.tag_name
-    return ret
+    return {
+        cluster.value: cluster.tag_name
+        for cluster in galaxy_attack_patterns.clusters
+    }
 
 
 def introspection() -> Dict[str, Union[str, List[str]]]:
@@ -422,7 +420,7 @@ def handler(q: Union[bool, str] = False) -> Union[bool, Dict[str, Any]]:
             logger.info("Connected NSX AnalysisClient to hosted infrastructure")
     except KeyError as ke:
         logger.error("Integration with VMware NSX ATA failed to connect: %s", str(ke))
-        return {"error": "Error connecting to VMware NSX ATA: {}".format(ke)}
+        return {"error": f"Error connecting to VMware NSX ATA: {ke}"}
 
     # Load the client to connect to MISP (soft-fail)
     try:
@@ -462,7 +460,7 @@ def handler(q: Union[bool, str] = False) -> Union[bool, Dict[str, Any]]:
             else:
                 hash_value = request["attribute"]["value"]
                 file_data = None
-                file_name = "{}.bin".format(hash_value)
+                file_name = f"{hash_value}.bin"
             # Check whether we have a task for that file
             tags = []
             task_uuid = _get_latest_analysis(analysis_clients, hash_value)
@@ -479,16 +477,16 @@ def handler(q: Union[bool, str] = False) -> Union[bool, Dict[str, Any]]:
                 tags.extend(_tags)
     except KeyError as e:
         logger.error("Error parsing input: %s", request["attribute"])
-        return {"error": "Error parsing input: {}".format(e)}
+        return {"error": f"Error parsing input: {e}"}
     except TypeError as e:
         logger.error("Error decoding input: %s", request["attribute"])
-        return {"error": "Error decoding input: {}".format(e)}
+        return {"error": f"Error decoding input: {e}"}
     except ValueError as e:
         logger.error("Error processing input: %s", request["attribute"])
-        return {"error": "Error processing input: {}".format(e)}
+        return {"error": f"Error processing input: {e}"}
     except (exceptions.CommunicationError, exceptions.ApiError) as e:
         logger.error("Error issuing API call: %s", str(e))
-        return {"error": "Error issuing API call: {}".format(e)}
+        return {"error": f"Error issuing API call: {e}"}
     else:
         analysis_link = tau_clients.get_task_link(
             uuid=task_uuid,
@@ -530,7 +528,7 @@ def handler(q: Union[bool, str] = False) -> Union[bool, Dict[str, Any]]:
         }
     except pymisp.PyMISPError as e:
         logger.error("Error parsing the report: %s", str(e))
-        return {"error": "Error parsing the report: {}".format(e)}
+        return {"error": f"Error parsing the report: {e}"}
 
 
 def main():

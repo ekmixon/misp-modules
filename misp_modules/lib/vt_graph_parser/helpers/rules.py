@@ -42,10 +42,11 @@ class MispEventRule(object):
         Returns:
           MispEventRule: the last different rule.
         """
-        if not isinstance(self, self.last_rule.__class__):
-            return self.last_rule
-        else:
-            return self.last_rule.get_last_different_rule()
+        return (
+            self.last_rule.get_last_different_rule()
+            if isinstance(self, self.last_rule.__class__)
+            else self.last_rule
+        )
 
     def resolve_relation(self, graph, node, misp_category):
         """Try to infer a relationship between two nodes.
@@ -166,10 +167,11 @@ class MispEventURLRule(MispEventRule):
 
     def __url_transition(self, graph, node, misp_category):
         suitable_rule = self.get_last_different_rule()
-        if not isinstance(suitable_rule, MispEventInitialRule):
-            return suitable_rule.resolve_relation(graph, node, misp_category)
-        else:
-            return MispEventURLRule(self, node)
+        return (
+            MispEventURLRule(self, node)
+            if isinstance(suitable_rule, MispEventInitialRule)
+            else suitable_rule.resolve_relation(graph, node, misp_category)
+        )
 
     def __domain_transition(self, graph, node, misp_category):
         graph.add_link(self.node.node_id, node.node_id, "contacted_domains")
@@ -197,10 +199,11 @@ class MispEventIPRule(MispEventRule):
 
     def __ip_transition(self, graph, node, misp_category):
         suitable_rule = self.get_last_different_rule()
-        if not isinstance(suitable_rule, MispEventInitialRule):
-            return suitable_rule.resolve_relation(graph, node, misp_category)
-        else:
-            return MispEventIPRule(self, node)
+        return (
+            MispEventIPRule(self, node)
+            if isinstance(suitable_rule, MispEventInitialRule)
+            else suitable_rule.resolve_relation(graph, node, misp_category)
+        )
 
     def __url_transition(self, graph, node, misp_category):
         graph.add_link(self.node.node_id, node.node_id, "urls")
@@ -242,9 +245,8 @@ class MispEventDomainRule(MispEventRule):
         suitable_rule = self.get_last_different_rule()
         if not isinstance(suitable_rule, MispEventInitialRule):
             return suitable_rule.resolve_relation(graph, node, misp_category)
-        else:
-            graph.add_link(self.node.node_id, node.node_id, "siblings")
-            return MispEventDomainRule(self, node)
+        graph.add_link(self.node.node_id, node.node_id, "siblings")
+        return MispEventDomainRule(self, node)
 
 
 class MispEventFileRule(MispEventRule):
@@ -261,10 +263,11 @@ class MispEventFileRule(MispEventRule):
 
     def __file_transition(self, graph, node, misp_category):
         suitable_rule = self.get_last_different_rule()
-        if not isinstance(suitable_rule, MispEventInitialRule):
-            return suitable_rule.resolve_relation(graph, node, misp_category)
-        else:
-            return MispEventFileRule(self, node)
+        return (
+            MispEventFileRule(self, node)
+            if isinstance(suitable_rule, MispEventInitialRule)
+            else suitable_rule.resolve_relation(graph, node, misp_category)
+        )
 
     def __ip_transition(self, graph, node, misp_category):
         graph.add_link(self.node.node_id, node.node_id, "contacted_ips")

@@ -110,13 +110,13 @@ def handler(q=False):
         return {"error": "Could not send attribute data to ClamAV. Maybe file is too big?"}
 
     if status == "ERROR":
-        return {"error": "ClamAV returned error message: {}".format(reason)}
+        return {"error": f"ClamAV returned error message: {reason}"}
     elif status == "OK":
         return {"results": {}}
     elif status == "FOUND":
         return create_response(attribute, software_version, reason)
     else:
-        return {"error": "ClamAV returned invalid status {}: {}".format(status, reason)}
+        return {"error": f"ClamAV returned invalid status {status}: {reason}"}
 
 
 def introspection():

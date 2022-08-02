@@ -93,7 +93,7 @@ def handler(q=False):
     except jbxapi.JoeException as e:
         return {"error": str(e)}
 
-    link_to_analysis = urljoin(apiurl, "../submissions/{}".format(result["submission_id"]))
+    link_to_analysis = urljoin(apiurl, f'../submissions/{result["submission_id"]}')
 
     return {
         "results": [{
@@ -137,4 +137,4 @@ def _parse_bool(value, name="bool"):
     if value == "false":
         return False
 
-    raise _ParseError("Cannot parse {}. Must be 'true' or 'false'".format(name))
+    raise _ParseError(f"Cannot parse {name}. Must be 'true' or 'false'")

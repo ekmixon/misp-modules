@@ -165,8 +165,11 @@ def handler(q=False):
         misperrors['error'] = "Impossible to read XML data"
         return misperrors
     aml_parser.parse_xml()
-    r = {'results': {'Object': [obj.to_json() for obj in aml_parser.misp_event.objects]}}
-    return r
+    return {
+        'results': {
+            'Object': [obj.to_json() for obj in aml_parser.misp_event.objects]
+        }
+    }
 
 
 def introspection():

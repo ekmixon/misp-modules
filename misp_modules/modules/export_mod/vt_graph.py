@@ -99,13 +99,12 @@ def handler(q=False):
 
 
 def introspection():
-    modulesetup = {
+    return {
         'responseType': 'application/txt',
         'outputFileExtension': 'txt',
         'userConfig': {},
-        'inputSource': []
+        'inputSource': [],
     }
-    return modulesetup
 
 
 def version():

@@ -155,13 +155,7 @@ def _check_config(config):
     if not config:
         return False
 
-    if not isinstance(config, dict):
-        return False
-
-    if config.get('token', '') == '':
-        return False
-
-    return True
+    return config.get('token', '') != '' if isinstance(config, dict) else False
 
 
 def _check_request(request):
@@ -187,8 +181,7 @@ def handler(q=False):
     if not _check_config(config):
         return _return_error('Missing Qintel token')
 
-    check_request_error = _check_request(request)
-    if check_request_error:
+    if check_request_error := _check_request(request):
         return _return_error(check_request_error)
 
     search_args = {

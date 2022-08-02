@@ -19,11 +19,7 @@ moduleconfig = []
 def isBlacklisted(value):
     blacklist = ['8.8.8.8', '255.255.255.255', '192.168.56.', 'time.windows.com']
 
-    for b in blacklist:
-        if value in b:
-            return True
-
-    return False
+    return any(value in b for b in blacklist)
 
 
 def valid_ip(ip):
@@ -82,50 +78,68 @@ def handler(q=False):
 def getHash(hash):
 
     ret = []
-    req = json.loads(requests.get("https://www.threatcrowd.org/searchApi/v2/file/report/?resource=" + hash).text)
+    req = json.loads(
+        requests.get(
+            f"https://www.threatcrowd.org/searchApi/v2/file/report/?resource={hash}"
+        ).text
+    )
+
 
     if "domains" in req:
         domains = req["domains"]
-        for domain in domains:
-            if not isBlacklisted(domain) and valid_domain(domain):
-                ret.append({"types": ["hostname"], "values": [domain]})
+        ret.extend(
+            {"types": ["hostname"], "values": [domain]}
+            for domain in domains
+            if not isBlacklisted(domain) and valid_domain(domain)
+        )
 
     if "ips" in req:
         ips = req["ips"]
-        for ip in ips:
-            if not isBlacklisted(ip):
-                ret.append({"types": ["ip-dst"], "values": [ip]})
+        ret.extend(
+            {"types": ["ip-dst"], "values": [ip]}
+            for ip in ips
+            if not isBlacklisted(ip)
+        )
 
     return ret
 
 
 def getIP(ip):
     ret = []
-    req = json.loads(requests.get("https://www.threatcrowd.org/searchApi/v2/ip/report/?ip=" + ip).text)
+    req = json.loads(
+        requests.get(
+            f"https://www.threatcrowd.org/searchApi/v2/ip/report/?ip={ip}"
+        ).text
+    )
+
 
     if "resolutions" in req:
-        for dns in req["resolutions"]:
-            if "domain" in dns:
-                if valid_domain(dns["domain"]):
-                    ret.append({"types": ["hostname"], "values": [dns["domain"]]})
+        ret.extend(
+            {"types": ["hostname"], "values": [dns["domain"]]}
+            for dns in req["resolutions"]
+            if "domain" in dns and valid_domain(dns["domain"])
+        )
 
     if "hashes" in req:
-        for hash in req["hashes"]:
-            ret.append({"types": ["md5"], "values": [hash]})
-
+        ret.extend({"types": ["md5"], "values": [hash]} for hash in req["hashes"])
     return ret
 
 
 def getEmail(email):
     ret = []
-    j = requests.get("https://www.threatcrowd.org/searchApi/v2/email/report/?email=" + email).text
+    j = requests.get(
+        f"https://www.threatcrowd.org/searchApi/v2/email/report/?email={email}"
+    ).text
+
     req = json.loads(j)
 
     if "domains" in req:
         domains = req["domains"]
-        for domain in domains:
-            if not isBlacklisted(domain) and valid_domain(domain):
-                ret.append({"types": ["hostname"], "values": [domain]})
+        ret.extend(
+            {"types": ["hostname"], "values": [domain]}
+            for domain in domains
+            if not isBlacklisted(domain) and valid_domain(domain)
+        )
 
     return ret
 
@@ -133,21 +147,28 @@ def getEmail(email):
 def getDomain(domain):
 
     ret = []
-    req = json.loads(requests.get("https://www.threatcrowd.org/searchApi/v2/domain/report/?domain=" + domain).text)
+    req = json.loads(
+        requests.get(
+            f"https://www.threatcrowd.org/searchApi/v2/domain/report/?domain={domain}"
+        ).text
+    )
+
 
     if "resolutions" in req:
-        for dns in req["resolutions"]:
-            if "ip_address" in dns:
-                ret.append({"types": ["ip-dst"], "values": [dns["ip_address"]]})
+        ret.extend(
+            {"types": ["ip-dst"], "values": [dns["ip_address"]]}
+            for dns in req["resolutions"]
+            if "ip_address" in dns
+        )
 
     if "emails" in req:
-        for email in req["emails"]:
-            ret.append({"types": ["whois-registrant-email"], "values": [email]})
+        ret.extend(
+            {"types": ["whois-registrant-email"], "values": [email]}
+            for email in req["emails"]
+        )
 
     if "hashes" in req:
-        for hash in req["hashes"]:
-            ret.append({"types": ["md5"], "values": [hash]})
-
+        ret.extend({"types": ["md5"], "values": [hash]} for hash in req["hashes"])
     return ret
 
 

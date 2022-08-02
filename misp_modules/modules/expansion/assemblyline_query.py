@@ -63,7 +63,7 @@ class AssemblyLineParser():
     def _create_file_object(self, file_info):
         file_object = MISPObject('file')
         filename_attribute = {'type': 'filename'}
-        filename_attribute.update(self.attribute)
+        filename_attribute |= self.attribute
         if file_info['classification'] != "UNCLASSIFIED":
             tag = {'Tag': [{'name': file_info['classification'].lower()}]}
             filename_attribute.update(tag)
@@ -92,7 +92,7 @@ class AssemblyLineParser():
             if score > 0:
                 scores[h] = {'name': f['name'], 'score': score}
             if f['children']:
-                scores.update(self._get_scores(f['children']))
+                scores |= self._get_scores(f['children'])
         return scores
 
     def _parse_report(self, submission):

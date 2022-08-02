@@ -32,7 +32,7 @@ def handler(q=False):
             break
         sleep(retry)
     for i, search_result in enumerate(search_results):
-        res += "("+str(i+1)+")" + '\t'
+        res += f"({str(i+1)})" + '\t'
         res += json.dumps(search_result.description, ensure_ascii=False)
         res += '\n\n'
     return {'results': [{'types': mispattributes['output'], 'values':res}]}

@@ -64,26 +64,26 @@ class DnsdbClient(object):
         if bailiwick:
             if not rrtype:
                 rrtype = 'ANY'
-            path = 'rrset/name/%s/%s/%s' % (quote(oname), rrtype, quote(bailiwick))
+            path = f'rrset/name/{quote(oname)}/{rrtype}/{quote(bailiwick)}'
         elif rrtype:
-            path = 'rrset/name/%s/%s' % (quote(oname), rrtype)
+            path = f'rrset/name/{quote(oname)}/{rrtype}'
         else:
-            path = 'rrset/name/%s' % quote(oname)
+            path = f'rrset/name/{quote(oname)}'
         return self._query(path, before, after)
 
     def query_rdata_name(self, rdata_name, rrtype=None, before=None, after=None):
         if rrtype:
-            path = 'rdata/name/%s/%s' % (quote(rdata_name), rrtype)
+            path = f'rdata/name/{quote(rdata_name)}/{rrtype}'
         else:
-            path = 'rdata/name/%s' % quote(rdata_name)
+            path = f'rdata/name/{quote(rdata_name)}'
         return self._query(path, before, after)
 
     def query_rdata_ip(self, rdata_ip, before=None, after=None):
-        path = 'rdata/ip/%s' % rdata_ip.replace('/', ',')
+        path = f"rdata/ip/{rdata_ip.replace('/', ',')}"
         return self._query(path, before, after)
 
     def _query(self, path, before=None, after=None):
-        url = '%s/lookup/%s' % (self.server, path)
+        url = f'{self.server}/lookup/{path}'
 
         params = {}
         if self.limit:
@@ -114,10 +114,10 @@ class DnsdbClient(object):
         try:
             http = opener.open(req)
             while True:
-                line = http.readline()
-                if not line:
+                if line := http.readline():
+                    yield json.loads(line.decode('ascii'))
+                else:
                     break
-                yield json.loads(line.decode('ascii'))
         except (HTTPError, URLError) as e:
             try:
                 raise QueryError(str(e), sys.exc_traceback)
@@ -164,7 +164,7 @@ def rrset_to_text(m):
 
 
 def rdata_to_text(m):
-    return '%s IN %s %s' % (m['rrname'], m['rrtype'], m['rdata'])
+    return f"{m['rrname']} IN {m['rrtype']} {m['rdata']}"
 
 
 def parse_config(cfg_files):
@@ -201,13 +201,22 @@ def time_parse(s):
     except ValueError:
         pass
 
-    m = re.match(r'^(?=\d)(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$', s, re.I)
-    if m:
-        return -1 * (int(m.group(1) or 0) * 604800
-                     + int(m.group(2) or 0) * 86400
-                     + int(m.group(3) or 0) * 3600
-                     + int(m.group(4) or 0) * 60
-                     + int(m.group(5) or 0))
+    if m := re.match(
+        r'^(?=\d)(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$',
+        s,
+        re.I,
+    ):
+        return -1 * (
+            (
+                (
+                    (int(m[1] or 0) * 604800 + int(m[2] or 0) * 86400)
+                    + int(m[3] or 0) * 3600
+                )
+                + int(m[4] or 0) * 60
+            )
+            + int(m[5] or 0)
+        )
+
 
     raise ValueError('Invalid time: "%s"' % s)
 
@@ -252,18 +261,18 @@ def main():
         if options.before:
             options.before = time_parse(options.before)
     except ValueError:
-        print('Could not parse before: {}'.format(options.before))
+        print(f'Could not parse before: {options.before}')
 
     try:
         if options.after:
             options.after = time_parse(options.after)
     except ValueError:
-        print('Could not parse after: {}'.format(options.after))
+        print(f'Could not parse after: {options.after}')
 
     try:
         cfg = parse_config(options.config or DEFAULT_CONFIG_FILES)
     except IOError as e:
-        print(str(e), file=sys.stderr)
+        print(e, file=sys.stderr)
         sys.exit(1)
 
     if 'DNSDB_SERVER' not in cfg:
@@ -309,7 +318,7 @@ def main():
     try:
         if options.sort:
             results = list(results)
-            if len(results) > 0:
+            if results:
                 if options.sort not in results[0]:
                     sort_keys = results[0].keys()
                     sort_keys.sort()

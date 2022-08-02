@@ -199,7 +199,7 @@ class RFColors:
 
     def riskscore_color(self, risk_score: int) -> str:
         """Returns appropriate hex-colors according to risk score."""
-        risk_score = int(risk_score)
+        risk_score = risk_score
         if risk_score < 25:
             return self.rf_white
         elif risk_score < 65:
@@ -209,7 +209,7 @@ class RFColors:
 
     def riskrule_color(self, risk_rule_criticality: int) -> str:
         """Returns appropriate hex-colors according to risk rule criticality."""
-        risk_rule_criticality = int(risk_rule_criticality)
+        risk_rule_criticality = risk_rule_criticality
         if risk_rule_criticality == 1:
             return self.rf_white
         elif risk_rule_criticality == 2:
@@ -409,21 +409,21 @@ class RFEnricher:
     def get_output_type(self, related_type: str, indicator: str) -> str:
         """Helper method for translating a Recorded Future related type to a MISP output type."""
         output_type = "text"
-        if related_type in ["RelatedIpAddress", "IpAddress"]:
+        if related_type in {"RelatedIpAddress", "IpAddress"}:
             output_type = "ip-dst"
-        elif related_type in ["RelatedInternetDomainName", "InternetDomainName"]:
+        elif related_type in {"RelatedInternetDomainName", "InternetDomainName"}:
             output_type = "domain"
-        elif related_type in ["RelatedHash", "Hash"]:
+        elif related_type in {"RelatedHash", "Hash"}:
             hash_len = len(indicator)
-            if hash_len == 64:
-                output_type = "sha256"
+            if hash_len == 32:
+                output_type = "md5"
             elif hash_len == 40:
                 output_type = "sha1"
-            elif hash_len == 32:
-                output_type = "md5"
-        elif related_type in ["RelatedEmailAddress", "EmailAddress"]:
+            elif hash_len == 64:
+                output_type = "sha256"
+        elif related_type in {"RelatedEmailAddress", "EmailAddress"}:
             output_type = "email-src"
-        elif related_type in ["RelatedCyberVulnerability", "CyberVulnerability"]:
+        elif related_type in {"RelatedCyberVulnerability", "CyberVulnerability"}:
             signature = indicator.split("-")[0]
             if signature == "CVE":
                 output_type = "vulnerability"
@@ -467,10 +467,7 @@ def get_proxy_settings(config: dict) -> Optional[Dict[str, str]]:
             )
             raise KeyError
         parsed = urlparse(host)
-        if "http" in parsed.scheme:
-            scheme = "http"
-        else:
-            scheme = parsed.scheme
+        scheme = "http" if "http" in parsed.scheme else parsed.scheme
         netloc = parsed.netloc
         host = f"{netloc}:{port}"
 
@@ -482,7 +479,7 @@ def get_proxy_settings(config: dict) -> Optional[Dict[str, str]]:
                 )
                 raise KeyError
             auth = f"{username}:{password}"
-            host = auth + "@" + host
+            host = f"{auth}@{host}"
 
         proxies = {"http": f"{scheme}://{host}", "https": f"{scheme}://{host}"}
 
@@ -519,7 +516,7 @@ def handler(q=False):
 
     try:
         rf_enricher.enrich()
-    except (HTTPError, ConnectTimeout, ProxyError, InvalidURL, KeyError):
+    except (HTTPError, ConnectTimeout, InvalidURL, KeyError):
         return misperrors
 
     return rf_enricher.get_results()

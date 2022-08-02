@@ -1,6 +1,9 @@
 import os
 import sys
-sys.path.append('{}/lib'.format('/'.join((os.path.realpath(__file__)).split('/')[:-3])))
+sys.path.append(
+    f"{'/'.join((os.path.realpath(__file__)).split('/')[:-3])}/lib"
+)
+
 
 __all__ = [
     'vmray_import',

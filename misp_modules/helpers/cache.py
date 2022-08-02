@@ -46,23 +46,21 @@ def get(modulename=None, query=None, value=None, debug=False):
     h = hashlib.sha1()
     h.update(query.encode('UTF-8'))
     hv = h.hexdigest()
-    key = "m:{}:{}".format(modulename, hv)
+    key = f"m:{modulename}:{hv}"
 
     if not r.exists(key):
         if debug:
-            print("Key {} added in cache".format(key))
+            print(f"Key {key} added in cache")
         r.setex(key, 86400, value)
-    else:
-        if debug:
-            print("Cache hit with Key {}".format(key))
+    elif debug:
+        print(f"Cache hit with Key {key}")
 
     return r.get(key)
 
 
 def flush():
     r = redis.StrictRedis(host=hostname, port=port, db=db, decode_responses=True)
-    returncode = r.flushdb()
-    return returncode
+    return r.flushdb()
 
 
 if __name__ == "__main__":

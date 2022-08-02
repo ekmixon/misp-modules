@@ -41,19 +41,16 @@ def handler(q=False):
 def handle_expansion(pyeupi, url):
     results = pyeupi.search_url(url=url)
 
-    if results.get('results'):
-        to_return = ''
-        for r in results['results']:
-            if r['tag_label'] != 'phishing':
-                continue
-            to_return += ' {} {} {} '.format(r['url'], r['domain'], r['ip_address'])
-        if to_return:
-            return {'results': [{'types': mispattributes['output'], 'values': to_return}]}
-        else:
-            misperrors['error'] = 'Unknown in the EUPI service'
-            return misperrors
-    else:
+    if not results.get('results'):
         return {'results': [{'types': mispattributes['output'], 'values': ''}]}
+    if to_return := ''.join(
+        f" {r['url']} {r['domain']} {r['ip_address']} "
+        for r in results['results']
+        if r['tag_label'] == 'phishing'
+    ):
+        return {'results': [{'types': mispattributes['output'], 'values': to_return}]}
+    misperrors['error'] = 'Unknown in the EUPI service'
+    return misperrors
 
 
 def handle_hover(pyeupi, url):

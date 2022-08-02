@@ -89,9 +89,9 @@ def load_helpers(helpersdir):
             selftest = hhandlers[helpername].selftest()
             if selftest is None:
                 helpers.append(helpername)
-                log.info('Helpers loaded {} '.format(filename))
+                log.info(f'Helpers loaded {filename} ')
             else:
-                log.info('Helpers failed {} due to {}'.format(filename, selftest))
+                log.info(f'Helpers failed {filename} due to {selftest}')
 
 
 def load_package_helpers():
@@ -108,9 +108,9 @@ def load_package_helpers():
         selftest = mhandlers[helpername].selftest()
         if selftest is None:
             helpers.append(helpername)
-            log.info('Helper loaded {}'.format(helpername))
+            log.info(f'Helper loaded {helpername}')
         else:
-            log.info('Helpers failed {} due to {}'.format(helpername, selftest))
+            log.info(f'Helpers failed {helpername} due to {selftest}')
     return mhandlers, helpers
 
 
@@ -131,13 +131,16 @@ def load_modules(mod_dir):
             modulename = filename.split(".")[0]
             moduletype = os.path.split(mod_dir)[1]
             try:
-                mhandlers[modulename] = importlib.import_module(os.path.basename(root) + '.' + modulename)
+                mhandlers[modulename] = importlib.import_module(
+                    f'{os.path.basename(root)}.{modulename}'
+                )
+
             except Exception as e:
                 log.warning('MISP modules {0} failed due to {1}'.format(modulename, e))
                 continue
             modules.append(modulename)
             log.info('MISP modules {0} imported'.format(modulename))
-            mhandlers['type:' + modulename] = moduletype
+            mhandlers[f'type:{modulename}'] = moduletype
     return mhandlers, modules
 
 
@@ -154,7 +157,7 @@ def load_package_modules():
             mhandlers[modulename] = module
             modules.append(modulename)
             log.info('MISP modules {0} imported'.format(modulename))
-            mhandlers['type:' + modulename] = moduletype
+            mhandlers[f'type:{modulename}'] = moduletype
     return mhandlers, modules
 
 
@@ -165,10 +168,12 @@ class ListModules(tornado.web.RequestHandler):
     def get(self):
         ret = []
         for module in loaded_modules:
-            x = {}
-            x['name'] = module
-            x['type'] = mhandlers['type:' + module]
-            x['mispattributes'] = mhandlers[module].introspection()
+            x = {
+                'name': module,
+                'type': mhandlers[f'type:{module}'],
+                'mispattributes': mhandlers[module].introspection(),
+            }
+
             x['meta'] = mhandlers[module].version()
             ret.append(x)
         log.debug('MISP ListModules request')
@@ -200,7 +205,7 @@ class QueryModule(tornado.web.RequestHandler):
             response = yield tornado.gen.with_timeout(timeout, self.run_request(dict_payload['module'], jsonpayload))
             self.write(response)
         except tornado.gen.TimeoutError:
-            log.warning('Timeout on {} '.format(dict_payload['module']))
+            log.warning(f"Timeout on {dict_payload['module']} ")
             self.write(json.dumps({'error': 'Timeout.'}))
         except Exception:
             self.write(json.dumps({'error': 'Something went wrong, look in the server logs for details'}))
@@ -245,7 +250,7 @@ def main():
                 modulename = splitted[-1]
                 moduletype = splitted[2]
                 mhandlers[modulename] = importlib.import_module(module)
-                mhandlers['type:' + modulename] = moduletype
+                mhandlers[f'type:{modulename}'] = moduletype
                 modules.append(modulename)
                 log.info('MISP modules {0} imported'.format(modulename))
         else:
@@ -276,9 +281,9 @@ def main():
                 if p.name() == "misp-modules":
                     print("\n\n\n")
                     print(e)
-                    print("\nmisp-modules is still running as PID: {}\n".format(pid))
+                    print(f"\nmisp-modules is still running as PID: {pid}\n")
                     print("Please kill accordingly:")
-                    print("sudo kill {}".format(pid))
+                    print(f"sudo kill {pid}")
                     sys.exit(-1)
             print(e)
             print("misp-modules might still be running.")

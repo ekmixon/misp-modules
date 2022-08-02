@@ -23,12 +23,14 @@ def handler(q=False):
         misp = json.loads(mfile)
         event = misp['response'][0]['Event']
         for a in event["Attribute"]:
-            tmp = {}
-            tmp["values"] = a["value"]
-            tmp["categories"] = a["category"]
-            tmp["types"] = a["type"]
-            tmp["to_ids"] = a["to_ids"]
-            tmp["comment"] = a["comment"]
+            tmp = {
+                "values": a["value"],
+                "categories": a["category"],
+                "types": a["type"],
+                "to_ids": a["to_ids"],
+                "comment": a["comment"],
+            }
+
             if a.get("data"):
                 tmp["data"] = a["data"]
             r['results'].append(tmp)

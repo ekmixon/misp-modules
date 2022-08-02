@@ -72,11 +72,14 @@ class PayloadQuery(URLhaus):
         file_object = MISPObject('file')
         if hasattr(self.attribute, 'object_id') and hasattr(self.attribute, 'event_id') and self.attribute.event_id != '0':
             file_object.id = self.attribute.object_id
-        response = requests.post(self.url, data={'{}_hash'.format(hash_type): self.attribute.value}).json()
+        response = requests.post(
+            self.url, data={f'{hash_type}_hash': self.attribute.value}
+        ).json()
+
         if response['query_status'] != 'ok':
             return self.parse_error(response['query_status'])
         other_hash_type = 'md5' if hash_type == 'sha256' else 'sha256'
-        for key, relation in zip(('{}_hash'.format(other_hash_type), 'file_size'), (other_hash_type, 'size-in-bytes')):
+        for key, relation in zip((f'{other_hash_type}_hash', 'file_size'), (other_hash_type, 'size-in-bytes')):
             if response[key]:
                 file_object.add_attribute(relation, **{'type': relation, 'value': response[key]})
         if response['virustotal']:

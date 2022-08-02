@@ -44,18 +44,20 @@ def handler(q=False):
         vuln_summary += 'Non existing CVE'
 
     if vulners_ai_score:
-        ai_summary += 'Vulners AI Score is ' + str(vulners_ai_score[0]) + " "
+        ai_summary += f'Vulners AI Score is {str(vulners_ai_score[0])} '
 
     if vulners_exploits:
-        exploit_summary += " ||  " + str(len(vulners_exploits)) + " Public exploits available:\n  "
+        exploit_summary += (
+            f" ||  {len(vulners_exploits)}" + " Public exploits available:\n  "
+        )
+
         for exploit in vulners_exploits:
             exploit_summary += exploit['title'] + " " + exploit['href'] + "\n  "
-        exploit_summary += "|| Vulnerability Description:  " + vuln_summary
+        exploit_summary += f"|| Vulnerability Description:  {vuln_summary}"
 
     summary = ai_summary + exploit_summary + vuln_summary
 
-    r = {'results': [{'types': mispattributes['output'], 'values': summary}]}
-    return r
+    return {'results': [{'types': mispattributes['output'], 'values': summary}]}
 
 
 def introspection():

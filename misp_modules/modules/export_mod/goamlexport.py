@@ -74,16 +74,22 @@ class GoAmlGeneration(object):
         self.uuids, self.report_codes, self.currency_codes = uuids, report_code, currency_code
 
     def build_xml(self):
-        self.xml = {'header': "<report><rentity_id>{}</rentity_id><submission_code>E</submission_code>".format(self.config),
-                    'data': ""}
+        self.xml = {
+            'header': f"<report><rentity_id>{self.config}</rentity_id><submission_code>E</submission_code>",
+            'data': "",
+        }
+
         if "STR" in self.report_codes:
             report_code = "STR"
         else:
             report_code = Counter(self.report_codes).most_common(1)[0][0]
-        self.xml['header'] += "<report_code>{}</report_code>".format(report_code)
+        self.xml['header'] += f"<report_code>{report_code}</report_code>"
         submission_date = str(self.misp_event.timestamp).replace(' ', 'T')
-        self.xml['header'] += "<submission_date>{}</submission_date>".format(submission_date)
-        self.xml['header'] += "<currency_code_local>{}</currency_code_local>".format(Counter(self.currency_codes).most_common(1)[0][0])
+        self.xml['header'] += f"<submission_date>{submission_date}</submission_date>"
+        self.xml[
+            'header'
+        ] += f"<currency_code_local>{Counter(self.currency_codes).most_common(1)[0][0]}</currency_code_local>"
+
         for trans_uuid in self.uuids.get('transaction'):
             self.itterate('transaction', 'transaction', trans_uuid, 'data')
         person_to_parse = [person_uuid for person_uuid in self.uuids.get('person') if person_uuid not in self.parsed_uuids.get('person')]
@@ -100,28 +106,27 @@ class GoAmlGeneration(object):
     def itterate(self, object_type, aml_type, uuid, xml_part):
         obj = self.misp_event.get_object_by_uuid(uuid)
         if object_type == 'transaction':
-            self.xml[xml_part] += "<{}>".format(aml_type)
+            self.xml[xml_part] += f"<{aml_type}>"
             self.fill_xml_transaction(object_type, obj.attributes, xml_part)
             self.parsed_uuids[object_type].append(uuid)
             if obj.ObjectReference:
                 self.parseObjectReferences(object_type, xml_part, obj.ObjectReference)
-            self.xml[xml_part] += "</{}>".format(aml_type)
+            self.xml[xml_part] += f"</{aml_type}>"
+        elif 'to_' in aml_type or 'from_' in aml_type:
+            relation_type = aml_type.split('_')[0]
+            self.xml[xml_part] += "<{0}_funds_code>{1}</{0}_funds_code>".format(relation_type, self.from_and_to_fields[relation_type]['funds'].split(' ')[0])
+            self.itterate_normal_case(object_type, obj, aml_type, uuid, xml_part)
+            self.xml[xml_part] += "<{0}_country>{1}</{0}_country>".format(relation_type, self.from_and_to_fields[relation_type]['country'])
         else:
-            if 'to_' in aml_type or 'from_' in aml_type:
-                relation_type = aml_type.split('_')[0]
-                self.xml[xml_part] += "<{0}_funds_code>{1}</{0}_funds_code>".format(relation_type, self.from_and_to_fields[relation_type]['funds'].split(' ')[0])
-                self.itterate_normal_case(object_type, obj, aml_type, uuid, xml_part)
-                self.xml[xml_part] += "<{0}_country>{1}</{0}_country>".format(relation_type, self.from_and_to_fields[relation_type]['country'])
-            else:
-                self.itterate_normal_case(object_type, obj, aml_type, uuid, xml_part)
+            self.itterate_normal_case(object_type, obj, aml_type, uuid, xml_part)
 
     def itterate_normal_case(self, object_type, obj, aml_type, uuid, xml_part):
-        self.xml[xml_part] += "<{}>".format(aml_type)
+        self.xml[xml_part] += f"<{aml_type}>"
         self.fill_xml(object_type, obj, xml_part)
         self.parsed_uuids[object_type].append(uuid)
         if obj.ObjectReference:
             self.parseObjectReferences(object_type, xml_part, obj.ObjectReference)
-        self.xml[xml_part] += "</{}>".format(aml_type)
+        self.xml[xml_part] += f"</{aml_type}>"
 
     def parseObjectReferences(self, object_type, xml_part, references):
         for ref in references:
@@ -175,17 +180,17 @@ class GoAmlGeneration(object):
             next_aml_type = reference[object_type].get('aml_type').format(relationship_type.split('_')[0])
             try:
                 bracket = reference[object_type].get('bracket').format(relationship_type)
-                self.xml[xml_part] += "<{}>".format(bracket)
+                self.xml[xml_part] += f"<{bracket}>"
                 self.itterate(next_object_type, next_aml_type, uuid, xml_part)
-                self.xml[xml_part] += "</{}>".format(bracket)
+                self.xml[xml_part] += f"</{bracket}>"
             except KeyError:
                 self.itterate(next_object_type, next_aml_type, uuid, xml_part)
         except KeyError:
             next_aml_type = reference.get('aml_type').format(relationship_type.split('_')[0])
             bracket = reference.get('bracket').format(relationship_type)
-            self.xml[xml_part] += "<{}>".format(bracket)
+            self.xml[xml_part] += f"<{bracket}>"
             self.itterate(next_object_type, next_aml_type, uuid, xml_part)
-            self.xml[xml_part] += "</{}>".format(bracket)
+            self.xml[xml_part] += f"</{bracket}>"
 
 
 def handler(q=False):
@@ -203,15 +208,13 @@ def handler(q=False):
     if not export_doc.misp_event.Object:
         misperrors['error'] = "There is no object in this event."
         return misperrors
-    types = []
-    for obj in export_doc.misp_event.Object:
-        types.append(obj.name)
+    types = [obj.name for obj in export_doc.misp_event.Object]
     if 'transaction' not in types:
         misperrors['error'] = "There is no transaction object in this event."
         return misperrors
     export_doc.parse_objects()
     export_doc.build_xml()
-    exp_doc = "{}{}".format(export_doc.xml.get('header'), export_doc.xml.get('data'))
+    exp_doc = f"{export_doc.xml.get('header')}{export_doc.xml.get('data')}"
     return {'response': [], 'data': str(base64.b64encode(bytes(exp_doc, 'utf-8')), 'utf-8')}
 
 

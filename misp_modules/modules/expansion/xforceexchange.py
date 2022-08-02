@@ -37,7 +37,7 @@ class XforceExchange():
 
     def parse(self):
         mapping = {'url': '_parse_url', 'vulnerability': '_parse_vulnerability'}
-        mapping.update(dict.fromkeys(('md5', 'sha1', 'sha256'), '_parse_hash'))
+        mapping |= dict.fromkeys(('md5', 'sha1', 'sha256'), '_parse_hash')
         mapping.update(dict.fromkeys(('domain', 'hostname'), '_parse_dns'))
         mapping.update(dict.fromkeys(('ip-src', 'ip-dst'), '_parse_ip'))
         to_call = mapping[self.attribute.type]
@@ -137,26 +137,34 @@ class XforceExchange():
         self._parse_malware(value, 'url')
 
     def _parse_vulnerability(self, value):
-        vulnerability_result = self._api_call(f'{self.base_url}/vulnerabilities/search/{value}')
-        if vulnerability_result:
-            for vulnerability in vulnerability_result:
-                misp_object = MISPObject('vulnerability')
-                for code in vulnerability['stdcode']:
-                    misp_object.add_attribute('id', code)
-                for feature, relation in zip(('title', 'description', 'temporal_score'),
-                                             ('summary', 'description', 'cvss-score')):
-                    misp_object.add_attribute(relation, vulnerability[feature])
-                for reference in vulnerability['references']:
-                    misp_object.add_attribute('references', reference['link_target'])
-                misp_object.add_reference(self.attribute.uuid, 'related-to')
-                self.misp_event.add_object(**misp_object)
+        if not (
+            vulnerability_result := self._api_call(
+                f'{self.base_url}/vulnerabilities/search/{value}'
+            )
+        ):
+            return
+        for vulnerability in vulnerability_result:
+            misp_object = MISPObject('vulnerability')
+            for code in vulnerability['stdcode']:
+                misp_object.add_attribute('id', code)
+            for feature, relation in zip(('title', 'description', 'temporal_score'),
+                                         ('summary', 'description', 'cvss-score')):
+                misp_object.add_attribute(relation, vulnerability[feature])
+            for reference in vulnerability['references']:
+                misp_object.add_attribute('references', reference['link_target'])
+            misp_object.add_reference(self.attribute.uuid, 'related-to')
+            self.misp_event.add_object(**misp_object)
 
 
 def handler(q=False):
     if q is False:
         return False
     request = json.loads(q)
-    if not request.get('config') or not (request['config'].get('apikey') and request['config'].get('apipassword')):
+    if (
+        not request.get('config')
+        or not request['config'].get('apikey')
+        or not request['config'].get('apipassword')
+    ):
         misperrors['error'] = 'An API authentication is required (key and password).'
         return misperrors
     key = request["config"]["apikey"]

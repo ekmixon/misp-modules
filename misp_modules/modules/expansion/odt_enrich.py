@@ -33,8 +33,21 @@ def handler(q=False):
     try:
         odt_content = odtToText(odt_file)
         print(odt_content)
-        return {'results': [{'types': ['freetext'], 'values': odt_content, 'comment': ".odt-to-text from file " + filename},
-                            {'types': ['text'], 'values': odt_content, 'comment': ".odt-to-text from file " + filename}]}
+        return {
+            'results': [
+                {
+                    'types': ['freetext'],
+                    'values': odt_content,
+                    'comment': f".odt-to-text from file {filename}",
+                },
+                {
+                    'types': ['text'],
+                    'values': odt_content,
+                    'comment': f".odt-to-text from file {filename}",
+                },
+            ]
+        }
+
     except Exception as e:
         print(e)
         err = "Couldn't analyze file as .odt. Error was: " + str(e)

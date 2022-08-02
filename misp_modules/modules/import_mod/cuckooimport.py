@@ -74,17 +74,18 @@ def search_objects(event, name, attributes=[]):
     Return a generator.
     @ param attributes: a list of (object_relation, value)
     """
-    match = filter(
+    return filter(
         lambda obj: all(
             obj.name == name
-            and (obj_relation, str(attr_value)) in map(
+            and (obj_relation, str(attr_value))
+            in map(
                 lambda attr: (attr.object_relation, str(attr.value)),
-                obj.attributes
+                obj.attributes,
             )
             for obj_relation, attr_value in attributes
-        ), event.objects
+        ),
+        event.objects,
     )
-    return match
 
 
 def find_process_by_pid(event, pid):
@@ -417,16 +418,14 @@ class CuckooParser():
                 call = m["call"]
                 arguments = call.get("arguments", {})
                 flags = call.get("flags", {})
-                info = ""
-                for details in (arguments, flags):
-                    info += f" {details}"
+                info = "".join(f" {details}" for details in (arguments, flags))
                 marks_strings.append(f"Call API '{call['api']}'%s" % info)
 
             else:
                 logging.debug(f"Unknown mark type '{m_type}', skipping")
 
             m["type"] = m_type  # restore key 'type'
-            # TODO implemented marks 'config' and 'volatility'
+                # TODO implemented marks 'config' and 'volatility'
         return marks_strings
 
     def _add_ttp(self, attribute, ttp_short, ttp_num):
@@ -478,8 +477,7 @@ class CuckooParser():
             # remove redundancy
             triggered_by_pids = set(triggered_by_pids)
             for pid in triggered_by_pids:
-                process_o = find_process_by_pid(self.event, pid)
-                if process_o:
+                if process_o := find_process_by_pid(self.event, pid):
                     process_o.add_reference(a, "triggers")
 
             o.add_attribute('signature', **a)
@@ -640,8 +638,8 @@ class CuckooParser():
                     # restore the filename, if not the format may have changed
                     # so we'll keep the filename of the report
                     if sha256.startswith(sha256_first_8_bytes) and \
-                            original_path.lower().endswith(original_name) and \
-                            filename not in original_path.lower():
+                                original_path.lower().endswith(original_name) and \
+                                filename not in original_path.lower():
                         # we can restore the original case of the filename
                         position = original_path.lower().rindex(original_name)
                         filename = original_path[position:]
@@ -671,11 +669,7 @@ class CuckooParser():
 
             # why is this a list? for when various programs drop the same file?
             for pid in d.get("pids", []):
-                # if we have an object for the process that dropped the file,
-                # we can link the two (we just take the first result from
-                # the search)
-                process_o = find_process_by_pid(self.event, pid)
-                if process_o:
+                if process_o := find_process_by_pid(self.event, pid):
                     file_o.add_reference(process_o, "dropped-by")
 
             self.event.add_object(file_o)

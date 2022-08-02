@@ -1,7 +1,10 @@
 import os
 import sys
 
-sys.path.append('{}/lib'.format('/'.join((os.path.realpath(__file__)).split('/')[:-3])))
+sys.path.append(
+    f"{'/'.join((os.path.realpath(__file__)).split('/')[:-3])}/lib"
+)
+
 
 __all__ = ['cuckoo_submit', 'vmray_submit', 'bgpranking', 'circl_passivedns', 'circl_passivessl',
            'countrycode', 'cve', 'cve_advanced', 'cpe', 'dns', 'btc_steroids', 'domaintools', 'eupi',

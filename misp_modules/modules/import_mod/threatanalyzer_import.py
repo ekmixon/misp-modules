@@ -82,8 +82,9 @@ def handler(q=False):
                         analysis_json = json.loads(file_data.decode('utf-8'))
                     results += process_analysis_json(analysis_json)
             try:
-                sample_filename = analysis_json.get('analysis').get('@filename')
-                if sample_filename:
+                if sample_filename := analysis_json.get('analysis').get(
+                    '@filename'
+                ):
                     with zf.open('sample', mode='r', pwd=None) as fp:
                         file_data = fp.read()
                         results.append({
@@ -100,190 +101,160 @@ def handler(q=False):
         except ValueError:
             log.warning('MISP modules {0} failed: uploaded file is not a zip or json file.'.format(request['module']))
             return {'error': 'Uploaded file is not a zip or json file.'}
-            pass
     # keep only unique entries based on the value field
     results = list({v['values']: v for v in results}.values())
-    r = {'results': results}
-    return r
+    return {'results': results}
 
 
 def process_analysis_json(analysis_json):
-    if 'analysis' in analysis_json and 'processes' in analysis_json['analysis'] and 'process' in analysis_json['analysis']['processes']:
+    if (
+        'analysis' not in analysis_json
+        or 'processes' not in analysis_json['analysis']
+        or 'process' not in analysis_json['analysis']['processes']
+    ):
+        return
         # if 'analysis' in analysis_json and '@filename' in analysis_json['analysis']:
         #     sample['values'] = analysis_json['analysis']['@filename']
-        for process in analysis_json['analysis']['processes']['process']:
+    for process in analysis_json['analysis']['processes']['process']:
             # print_json(process)
-            if 'connection_section' in process and 'connection' in process['connection_section']:
-                # compensate for absurd behavior of the data format: if one entry = immediately the dict, if multiple entries = list containing dicts
-                # this will always create a list, even with only one item
-                if isinstance(process['connection_section']['connection'], dict):
-                    process['connection_section']['connection'] = [process['connection_section']['connection']]
+        if 'connection_section' in process and 'connection' in process['connection_section']:
+            # compensate for absurd behavior of the data format: if one entry = immediately the dict, if multiple entries = list containing dicts
+            # this will always create a list, even with only one item
+            if isinstance(process['connection_section']['connection'], dict):
+                process['connection_section']['connection'] = [process['connection_section']['connection']]
 
                 # iterate over each entry
-                for connection_section_connection in process['connection_section']['connection']:
-                    # compensate for absurd behavior of the data format: if one entry = immediately the dict, if multiple entries = list containing dicts
-                    # this will always create a list, even with only one item
-                    for subsection in ['http_command', 'http_header']:
-                        if isinstance(connection_section_connection[subsection], dict):
-                            connection_section_connection[subsection] = [connection_section_connection[subsection]]
+            for connection_section_connection in process['connection_section']['connection']:
+                # compensate for absurd behavior of the data format: if one entry = immediately the dict, if multiple entries = list containing dicts
+                # this will always create a list, even with only one item
+                for subsection in ['http_command', 'http_header']:
+                    if isinstance(connection_section_connection[subsection], dict):
+                        connection_section_connection[subsection] = [connection_section_connection[subsection]]
 
-                    if 'name_to_ip' in connection_section_connection:  # TA 6.1 data format
-                        connection_section_connection['@remote_ip'] = connection_section_connection['name_to_ip']['@result_addresses']
-                        connection_section_connection['@remote_hostname'] = connection_section_connection['name_to_ip']['@request_name']
+                if 'name_to_ip' in connection_section_connection:  # TA 6.1 data format
+                    connection_section_connection['@remote_ip'] = connection_section_connection['name_to_ip']['@result_addresses']
+                    connection_section_connection['@remote_hostname'] = connection_section_connection['name_to_ip']['@request_name']
 
-                    connection_section_connection['@remote_ip'] = cleanup_ip(connection_section_connection['@remote_ip'])
-                    connection_section_connection['@remote_hostname'] = cleanup_hostname(connection_section_connection['@remote_hostname'])
-                    if connection_section_connection['@remote_ip'] and connection_section_connection['@remote_hostname']:
-                        val = '{}|{}'.format(connection_section_connection['@remote_hostname'],
-                                             connection_section_connection['@remote_ip'])
-                        # print("connection_section_connection hostname|ip: {}|{}  IDS:yes".format(
-                        #     connection_section_connection['@remote_hostname'],
-                        #     connection_section_connection['@remote_ip'])
-                        # )
-                        yield({'values': val, 'type': 'domain|ip', 'categories': ['Network activity'], 'to_ids': True, 'comment': ''})
-                    elif connection_section_connection['@remote_ip']:
-                        # print("connection_section_connection ip-dst: {}  IDS:yes".format(
-                        #     connection_section_connection['@remote_ip'])
-                        # )
-                        yield({'values': connection_section_connection['@remote_ip'], 'type': 'ip-dst', 'to_ids': True, 'comment': ''})
-                    elif connection_section_connection['@remote_hostname']:
-                        # print("connection_section_connection hostname: {}  IDS:yes".format(
-                        #     connection_section_connection['@remote_hostname'])
-                        # )
-                        yield({'values': connection_section_connection['@remote_hostname'], 'type': 'hostname', 'to_ids': True, 'comment': ''})
-                    if 'http_command' in connection_section_connection:
-                        for http_command in connection_section_connection['http_command']:
-                            # print('connection_section_connection HTTP COMMAND: {}\t{}'.format(
-                            #     connection_section_connection['http_command']['@method'],                    # comment
-                            #     connection_section_connection['http_command']['@url'])                       # url
-                            # )
-                            val = cleanup_url(http_command['@url'])
-                            if val:
-                                yield({'values': val, 'type': 'url', 'categories': ['Network activity'], 'to_ids': True, 'comment': http_command['@method']})
+                connection_section_connection['@remote_ip'] = cleanup_ip(connection_section_connection['@remote_ip'])
+                connection_section_connection['@remote_hostname'] = cleanup_hostname(connection_section_connection['@remote_hostname'])
+                if connection_section_connection['@remote_ip'] and connection_section_connection['@remote_hostname']:
+                    val = f"{connection_section_connection['@remote_hostname']}|{connection_section_connection['@remote_ip']}"
 
-                    if 'http_header' in connection_section_connection:
-                        for http_header in connection_section_connection['http_header']:
-                            if 'User-Agent:' in http_header['@header']:
-                                val = http_header['@header'][len('User-Agent: '):]
-                                yield({'values': val, 'type': 'user-agent', 'categories': ['Network activity'], 'to_ids': False, 'comment': ''})
-                            elif 'Host:' in http_header['@header']:
-                                val = http_header['@header'][len('Host: '):]
-                                if ':' in val:
-                                    try:
-                                        val_port = int(val.split(':')[1])
-                                    except ValueError:
-                                        val_port = False
-                                    val_hostname = cleanup_hostname(val.split(':')[0])
-                                    val_ip = cleanup_ip(val.split(':')[0])
-                                    if val_hostname and val_port:
-                                        val_combined = '{}|{}'.format(val_hostname, val_port)
-                                        # print({'values': val_combined, 'type': 'hostname|port', 'to_ids': True, 'comment': ''})
-                                        yield({'values': val_combined, 'type': 'hostname|port', 'categories': ['Network activity'], 'to_ids': True, 'comment': ''})
-                                    elif val_ip and val_port:
-                                        val_combined = '{}|{}'.format(val_ip, val_port)
-                                        # print({'values': val_combined, 'type': 'ip-dst|port', 'to_ids': True, 'comment': ''})
-                                        yield({'values': val_combined, 'type': 'ip-dst|port', 'to_ids': True, 'comment': ''})
-                                    else:
-                                        continue
-                                val_hostname = cleanup_hostname(val)
-                                if val_hostname:
-                                    # print({'values': val_hostname, 'type': 'hostname', 'to_ids': True, 'comment': ''})
-                                    yield({'values': val_hostname, 'type': 'hostname', 'to_ids': True, 'comment': ''})
-                            else:
-                                # LATER header not processed
-                                pass
-            if 'filesystem_section' in process and 'create_file' in process['filesystem_section']:
-                for filesystem_section_create_file in process['filesystem_section']['create_file']:
-                    # first skip some items
-                    if filesystem_section_create_file['@create_disposition'] in {'FILE_OPEN_IF'}:
-                        continue
-                        # FIXME - this section is probably not needed considering the 'stored_files stored_created_file' section we process later.
-                        # print('CREATE FILE: {}\t{}'.format(
-                        #     filesystem_section_create_file['@srcfile'],             # filename
-                        #     filesystem_section_create_file['@create_disposition'])  # comment - use this to filter out cases
-                        # )
+                    # print("connection_section_connection hostname|ip: {}|{}  IDS:yes".format(
+                    #     connection_section_connection['@remote_hostname'],
+                    #     connection_section_connection['@remote_ip'])
+                    # )
+                    yield({'values': val, 'type': 'domain|ip', 'categories': ['Network activity'], 'to_ids': True, 'comment': ''})
+                elif connection_section_connection['@remote_ip']:
+                    # print("connection_section_connection ip-dst: {}  IDS:yes".format(
+                    #     connection_section_connection['@remote_ip'])
+                    # )
+                    yield({'values': connection_section_connection['@remote_ip'], 'type': 'ip-dst', 'to_ids': True, 'comment': ''})
+                elif connection_section_connection['@remote_hostname']:
+                    # print("connection_section_connection hostname: {}  IDS:yes".format(
+                    #     connection_section_connection['@remote_hostname'])
+                    # )
+                    yield({'values': connection_section_connection['@remote_hostname'], 'type': 'hostname', 'to_ids': True, 'comment': ''})
+                if 'http_command' in connection_section_connection:
+                    for http_command in connection_section_connection['http_command']:
+                        if val := cleanup_url(http_command['@url']):
+                            yield({'values': val, 'type': 'url', 'categories': ['Network activity'], 'to_ids': True, 'comment': http_command['@method']})
 
-            if 'networkoperation_section' in process and 'dns_request_by_addr' in process['networkoperation_section']:
-                for networkoperation_section_dns_request_by_addr in process['networkoperation_section']['dns_request_by_addr']:
-                    # FIXME - it's unclear what this section is for.
-                    # TODO filter this
-                    # print('DNS REQUEST: {}\t{}'.format(
-                    #     networkoperation_section_dns_request_by_addr['@request_address'],       # ip-dst
-                    #     networkoperation_section_dns_request_by_addr['@result_name'])           # hostname
-                    # )                                                                           # => NOT hostname|ip
-                    pass
-            if 'networkoperation_section' in process and 'dns_request_by_name' in process['networkoperation_section']:
-                for networkoperation_section_dns_request_by_name in process['networkoperation_section']['dns_request_by_name']:
-                    networkoperation_section_dns_request_by_name['@request_name'] = cleanup_hostname(networkoperation_section_dns_request_by_name['@request_name'].rstrip('.'))
-                    networkoperation_section_dns_request_by_name['@result_addresses'] = cleanup_ip(networkoperation_section_dns_request_by_name['@result_addresses'])
-                    if networkoperation_section_dns_request_by_name['@request_name'] and networkoperation_section_dns_request_by_name['@result_addresses']:
-                        val = '{}|{}'.format(networkoperation_section_dns_request_by_name['@request_name'],
-                                             networkoperation_section_dns_request_by_name['@result_addresses'])
-                        # print("networkoperation_section_dns_request_by_name hostname|ip: {}|{}  IDS:yes".format(
-                        #     networkoperation_section_dns_request_by_name['@request_name'],
-                        #     networkoperation_section_dns_request_by_name['@result_addresses'])
-                        # )
-                        yield({'values': val, 'type': 'domain|ip', 'categories': ['Network activity'], 'to_ids': True, 'comment': ''})
-                    elif networkoperation_section_dns_request_by_name['@request_name']:
-                        # print("networkoperation_section_dns_request_by_name hostname: {}  IDS:yes".format(
-                        #     networkoperation_section_dns_request_by_name['@request_name'])
-                        # )
-                        yield({'values': networkoperation_section_dns_request_by_name['@request_name'], 'type': 'hostname', 'to_ids': True, 'comment': ''})
-                    elif networkoperation_section_dns_request_by_name['@result_addresses']:
-                        # this happens when the IP is both in the request_name and result_address.
-                        # print("networkoperation_section_dns_request_by_name hostname: {}  IDS:yes".format(
-                        #     networkoperation_section_dns_request_by_name['@result_addresses'])
-                        # )
-                        yield({'values': networkoperation_section_dns_request_by_name['@result_addresses'], 'type': 'ip-dst', 'to_ids': True, 'comment': ''})
+                if 'http_header' in connection_section_connection:
+                    for http_header in connection_section_connection['http_header']:
+                        if 'User-Agent:' in http_header['@header']:
+                            val = http_header['@header'][len('User-Agent: '):]
+                            yield({'values': val, 'type': 'user-agent', 'categories': ['Network activity'], 'to_ids': False, 'comment': ''})
+                        elif 'Host:' in http_header['@header']:
+                            val = http_header['@header'][len('Host: '):]
+                            if ':' in val:
+                                try:
+                                    val_port = int(val.split(':')[1])
+                                except ValueError:
+                                    val_port = False
+                                val_hostname = cleanup_hostname(val.split(':')[0])
+                                val_ip = cleanup_ip(val.split(':')[0])
+                                if val_hostname and val_port:
+                                    val_combined = f'{val_hostname}|{val_port}'
+                                    # print({'values': val_combined, 'type': 'hostname|port', 'to_ids': True, 'comment': ''})
+                                    yield({'values': val_combined, 'type': 'hostname|port', 'categories': ['Network activity'], 'to_ids': True, 'comment': ''})
+                                elif val_ip and val_port:
+                                    val_combined = f'{val_ip}|{val_port}'
+                                    # print({'values': val_combined, 'type': 'ip-dst|port', 'to_ids': True, 'comment': ''})
+                                    yield({'values': val_combined, 'type': 'ip-dst|port', 'to_ids': True, 'comment': ''})
+                                else:
+                                    continue
+                            if val_hostname := cleanup_hostname(val):
+                                # print({'values': val_hostname, 'type': 'hostname', 'to_ids': True, 'comment': ''})
+                                yield({'values': val_hostname, 'type': 'hostname', 'to_ids': True, 'comment': ''})
+        if 'filesystem_section' in process and 'create_file' in process['filesystem_section']:
+            for filesystem_section_create_file in process['filesystem_section']['create_file']:
+                # first skip some items
+                if filesystem_section_create_file['@create_disposition'] in {'FILE_OPEN_IF'}:
+                    continue
+                    # FIXME - this section is probably not needed considering the 'stored_files stored_created_file' section we process later.
+                    # print('CREATE FILE: {}\t{}'.format(
+                    #     filesystem_section_create_file['@srcfile'],             # filename
+                    #     filesystem_section_create_file['@create_disposition'])  # comment - use this to filter out cases
+                    # )
 
-            if 'networkpacket_section' in process and 'connect_to_computer' in process['networkpacket_section']:
-                for networkpacket_section_connect_to_computer in process['networkpacket_section']['connect_to_computer']:
-                    networkpacket_section_connect_to_computer['@remote_hostname'] = cleanup_hostname(networkpacket_section_connect_to_computer['@remote_hostname'])
-                    networkpacket_section_connect_to_computer['@remote_ip'] = cleanup_ip(networkpacket_section_connect_to_computer['@remote_ip'])
-                    if networkpacket_section_connect_to_computer['@remote_hostname'] and networkpacket_section_connect_to_computer['@remote_ip']:
+        if 'networkoperation_section' in process and 'dns_request_by_name' in process['networkoperation_section']:
+            for networkoperation_section_dns_request_by_name in process['networkoperation_section']['dns_request_by_name']:
+                networkoperation_section_dns_request_by_name['@request_name'] = cleanup_hostname(networkoperation_section_dns_request_by_name['@request_name'].rstrip('.'))
+                networkoperation_section_dns_request_by_name['@result_addresses'] = cleanup_ip(networkoperation_section_dns_request_by_name['@result_addresses'])
+                if networkoperation_section_dns_request_by_name['@request_name'] and networkoperation_section_dns_request_by_name['@result_addresses']:
+                    val = f"{networkoperation_section_dns_request_by_name['@request_name']}|{networkoperation_section_dns_request_by_name['@result_addresses']}"
+
+                    # print("networkoperation_section_dns_request_by_name hostname|ip: {}|{}  IDS:yes".format(
+                    #     networkoperation_section_dns_request_by_name['@request_name'],
+                    #     networkoperation_section_dns_request_by_name['@result_addresses'])
+                    # )
+                    yield({'values': val, 'type': 'domain|ip', 'categories': ['Network activity'], 'to_ids': True, 'comment': ''})
+                elif networkoperation_section_dns_request_by_name['@request_name']:
+                    # print("networkoperation_section_dns_request_by_name hostname: {}  IDS:yes".format(
+                    #     networkoperation_section_dns_request_by_name['@request_name'])
+                    # )
+                    yield({'values': networkoperation_section_dns_request_by_name['@request_name'], 'type': 'hostname', 'to_ids': True, 'comment': ''})
+                elif networkoperation_section_dns_request_by_name['@result_addresses']:
+                    # this happens when the IP is both in the request_name and result_address.
+                    # print("networkoperation_section_dns_request_by_name hostname: {}  IDS:yes".format(
+                    #     networkoperation_section_dns_request_by_name['@result_addresses'])
+                    # )
+                    yield({'values': networkoperation_section_dns_request_by_name['@result_addresses'], 'type': 'ip-dst', 'to_ids': True, 'comment': ''})
+
+        if 'networkpacket_section' in process and 'connect_to_computer' in process['networkpacket_section']:
+            for networkpacket_section_connect_to_computer in process['networkpacket_section']['connect_to_computer']:
+                networkpacket_section_connect_to_computer['@remote_hostname'] = cleanup_hostname(networkpacket_section_connect_to_computer['@remote_hostname'])
+                networkpacket_section_connect_to_computer['@remote_ip'] = cleanup_ip(networkpacket_section_connect_to_computer['@remote_ip'])
+                if networkpacket_section_connect_to_computer['@remote_hostname'] and networkpacket_section_connect_to_computer['@remote_ip']:
                         # print("networkpacket_section_connect_to_computer hostname|ip: {}|{}  IDS:yes COMMENT:port {}".format(
                         #     networkpacket_section_connect_to_computer['@remote_hostname'],
                         #     networkpacket_section_connect_to_computer['@remote_ip'],
                         #     networkpacket_section_connect_to_computer['@remote_port'])
                         # )
-                        val_combined = "{}|{}".format(networkpacket_section_connect_to_computer['@remote_hostname'], networkpacket_section_connect_to_computer['@remote_ip'])
-                        yield({'values': val_combined, 'type': 'domain|ip', 'to_ids': True, 'comment': ''})
-                    elif networkpacket_section_connect_to_computer['@remote_hostname']:
+                    val_combined = f"{networkpacket_section_connect_to_computer['@remote_hostname']}|{networkpacket_section_connect_to_computer['@remote_ip']}"
+
+                    yield({'values': val_combined, 'type': 'domain|ip', 'to_ids': True, 'comment': ''})
+                elif networkpacket_section_connect_to_computer['@remote_hostname']:
                         # print("networkpacket_section_connect_to_computer hostname: {}  IDS:yes COMMENT:port {}".format(
                         #     networkpacket_section_connect_to_computer['@remote_hostname'],
                         #     networkpacket_section_connect_to_computer['@remote_port'])
                         # )
-                        val_combined = "{}|{}".format(networkpacket_section_connect_to_computer['@remote_hostname'], networkpacket_section_connect_to_computer['@remote_port'])
-                        yield({'values': val_combined, 'type': 'hostname|port', 'categories': ['Network activity'], 'to_ids': True, 'comment': ''})
-                    elif networkpacket_section_connect_to_computer['@remote_ip']:
+                    val_combined = f"{networkpacket_section_connect_to_computer['@remote_hostname']}|{networkpacket_section_connect_to_computer['@remote_port']}"
+
+                    yield({'values': val_combined, 'type': 'hostname|port', 'categories': ['Network activity'], 'to_ids': True, 'comment': ''})
+                elif networkpacket_section_connect_to_computer['@remote_ip']:
                         # print("networkpacket_section_connect_to_computer ip-dst: {}  IDS:yes COMMENT:port {}".format(
                         #     networkpacket_section_connect_to_computer['@remote_ip'],
                         #     networkpacket_section_connect_to_computer['@remote_port'])
                         # )
-                        val_combined = "{}|{}".format(networkpacket_section_connect_to_computer['@remote_ip'], networkpacket_section_connect_to_computer['@remote_port'])
-                        yield({'values': val_combined, 'type': 'ip-dst|port', 'to_ids': True, 'comment': ''})
+                    val_combined = f"{networkpacket_section_connect_to_computer['@remote_ip']}|{networkpacket_section_connect_to_computer['@remote_port']}"
 
-            if 'registry_section' in process and 'create_key' in process['registry_section']:
-                # FIXME this is a complicated section, together with the 'set_value'.
-                # it looks like this section is not ONLY about creating registry keys,
-                # more about accessing a handle to keys (with specific permissions)
-                # maybe we don't want to keep this, in favor of 'set_value'
-                for create_key in process['registry_section']['create_key']:
-                    # print('REG CREATE: {}\t{}'.format(
-                    #     create_key['@desired_access'],
-                    #     create_key['@key_name']))
-                    pass
-            if 'registry_section' in process and 'delete_key' in process['registry_section']:
-                # LATER we probably don't want to keep this. Much pollution.
-                # Maybe for later once we have filtered out this.
-                for delete_key in process['registry_section']['delete_key']:
-                    # print('REG DELETE: {}'.format(
-                    #     delete_key['@key_name'])
-                    # )
-                    pass
-            if 'registry_section' in process and 'set_value' in process['registry_section']:
+                    yield({'values': val_combined, 'type': 'ip-dst|port', 'to_ids': True, 'comment': ''})
+
+        if 'registry_section' in process and 'set_value' in process['registry_section']:
                 # FIXME this is a complicated section, together with the 'create_key'.
-                for set_value in process['registry_section']['set_value']:
+            for set_value in process['registry_section']['set_value']:
                     # '@data_type' == 'REG_BINARY',
                     # '@data_type' == 'REG_DWORD',
                     # '@data_type' == 'REG_EXPAND_SZ',
@@ -291,20 +262,23 @@ def process_analysis_json(analysis_json):
                     # '@data_type' == 'REG_NONE',
                     # '@data_type' == 'REG_QWORD',
                     # '@data_type' == 'REG_SZ',
-                    regkey = cleanup_regkey("{}\\{}".format(set_value['@key_name'], set_value['@value_name']))
-                    regdata = cleanup_regdata(set_value.get('@data'))
-                    if not regkey:
-                        continue
-                    if set_value['@data_size'] == '0' or not regdata:
-                        # print('registry_section set_value REG SET: {}\t{}\t{}'.format(
-                        #     set_value['@data_type'],
-                        #     set_value['@key_name'],
-                        #     set_value['@value_name'])
-                        # )
-                        yield({'values': regkey, 'type': 'regkey', 'to_ids': True,
-                               'categories': ['External analysis', 'Persistence mechanism', 'Artifacts dropped'], 'comment': set_value['@data_type']})
-                    else:
-                        try:
+                regkey = cleanup_regkey(
+                    f"{set_value['@key_name']}\\{set_value['@value_name']}"
+                )
+
+                regdata = cleanup_regdata(set_value.get('@data'))
+                if not regkey:
+                    continue
+                if set_value['@data_size'] == '0' or not regdata:
+                    # print('registry_section set_value REG SET: {}\t{}\t{}'.format(
+                    #     set_value['@data_type'],
+                    #     set_value['@key_name'],
+                    #     set_value['@value_name'])
+                    # )
+                    yield({'values': regkey, 'type': 'regkey', 'to_ids': True,
+                           'categories': ['External analysis', 'Persistence mechanism', 'Artifacts dropped'], 'comment': set_value['@data_type']})
+                else:
+                    try:
                             # unicode fun...
                             # print('registry_section set_value REG SET: {}\t{}\t{}\t{}'.format(
                             #     set_value['@data_type'],
@@ -312,56 +286,53 @@ def process_analysis_json(analysis_json):
                             #     set_value['@value_name'],
                             #     set_value['@data'])
                             # )
-                            val = "{}|{}".format(regkey, regdata)
-                            yield({'values': val, 'type': 'regkey|value', 'to_ids': True,
-                                   'categories': ['External analysis', 'Persistence mechanism', 'Artifacts dropped'], 'comment': set_value['@data_type']})
-                        except Exception as e:
-                            print("EXCEPTION registry_section {}".format(e))
-                            # TODO - maybe we want to handle these later, or not...
-                        pass
-                    pass
+                        val = f"{regkey}|{regdata}"
+                        yield({'values': val, 'type': 'regkey|value', 'to_ids': True,
+                               'categories': ['External analysis', 'Persistence mechanism', 'Artifacts dropped'], 'comment': set_value['@data_type']})
+                    except Exception as e:
+                        print(f"EXCEPTION registry_section {e}")
+                                                # TODO - maybe we want to handle these later, or not...
+        if 'stored_files' in process and 'stored_created_file' in process['stored_files']:
+            for stored_created_file in process['stored_files']['stored_created_file']:
+                stored_created_file['@filename'] = cleanup_filepath(stored_created_file['@filename'])
+                if stored_created_file['@filename']:
+                    if stored_created_file['@filesize'] != '0':
+                        val = f"{stored_created_file['@filename']}|{stored_created_file['@md5']}"
+                        # print("stored_created_file filename|md5: {}|{}  IDS:yes".format(
+                        #     stored_created_file['@filename'],                       # filename
+                        #     stored_created_file['@md5'])                            # md5
+                        # )                                                           # => filename|md5
+                        yield({'values': val, 'type': 'filename|md5', 'to_ids': True,
+                               'categories': ['Artifacts dropped', 'Payload delivery'], 'comment': ''})
 
-            if 'stored_files' in process and 'stored_created_file' in process['stored_files']:
-                for stored_created_file in process['stored_files']['stored_created_file']:
-                    stored_created_file['@filename'] = cleanup_filepath(stored_created_file['@filename'])
-                    if stored_created_file['@filename']:
-                        if stored_created_file['@filesize'] != '0':
-                            val = '{}|{}'.format(stored_created_file['@filename'], stored_created_file['@md5'])
-                            # print("stored_created_file filename|md5: {}|{}  IDS:yes".format(
-                            #     stored_created_file['@filename'],                       # filename
-                            #     stored_created_file['@md5'])                            # md5
-                            # )                                                           # => filename|md5
-                            yield({'values': val, 'type': 'filename|md5', 'to_ids': True,
-                                   'categories': ['Artifacts dropped', 'Payload delivery'], 'comment': ''})
+                    else:
+                        # print("stored_created_file filename: {}  IDS:yes".format(
+                        #     stored_created_file['@filename'])                        # filename
+                        # )                                                           # => filename
+                        yield({'values': stored_created_file['@filename'],
+                               'type': 'filename', 'to_ids': True,
+                               'categories': ['Artifacts dropped', 'Payload delivery'], 'comment': ''})
 
-                        else:
-                            # print("stored_created_file filename: {}  IDS:yes".format(
-                            #     stored_created_file['@filename'])                        # filename
-                            # )                                                           # => filename
-                            yield({'values': stored_created_file['@filename'],
-                                   'type': 'filename', 'to_ids': True,
-                                   'categories': ['Artifacts dropped', 'Payload delivery'], 'comment': ''})
-
-            if 'stored_files' in process and 'stored_modified_file' in process['stored_files']:
-                for stored_modified_file in process['stored_files']['stored_modified_file']:
-                    stored_modified_file['@filename'] = cleanup_filepath(stored_modified_file['@filename'])
-                    if stored_modified_file['@filename']:
-                        if stored_modified_file['@filesize'] != '0':
-                            val = '{}|{}'.format(stored_modified_file['@filename'], stored_modified_file['@md5'])
-                            # print("stored_modified_file MODIFY FILE: {}\t{}".format(
-                            #     stored_modified_file['@filename'],                       # filename
-                            #     stored_modified_file['@md5'])                            # md5
-                            # )                                                            # => filename|md5
-                            yield({'values': val, 'type': 'filename|md5', 'to_ids': True,
-                                   'categories': ['Artifacts dropped', 'Payload delivery'],
-                                   'comment': 'modified'})
-                        else:
-                            # print("stored_modified_file MODIFY FILE: {}\t{}".format(
-                            #     stored_modified_file['@filename'])                       # filename
-                            # )                                                            # => filename
-                            yield({'values': stored_modified_file['@filename'], 'type': 'filename', 'to_ids': True,
-                                   'categories': ['Artifacts dropped', 'Payload delivery'],
-                                   'comment': 'modified'})
+        if 'stored_files' in process and 'stored_modified_file' in process['stored_files']:
+            for stored_modified_file in process['stored_files']['stored_modified_file']:
+                stored_modified_file['@filename'] = cleanup_filepath(stored_modified_file['@filename'])
+                if stored_modified_file['@filename']:
+                    if stored_modified_file['@filesize'] != '0':
+                        val = f"{stored_modified_file['@filename']}|{stored_modified_file['@md5']}"
+                        # print("stored_modified_file MODIFY FILE: {}\t{}".format(
+                        #     stored_modified_file['@filename'],                       # filename
+                        #     stored_modified_file['@md5'])                            # md5
+                        # )                                                            # => filename|md5
+                        yield({'values': val, 'type': 'filename|md5', 'to_ids': True,
+                               'categories': ['Artifacts dropped', 'Payload delivery'],
+                               'comment': 'modified'})
+                    else:
+                        # print("stored_modified_file MODIFY FILE: {}\t{}".format(
+                        #     stored_modified_file['@filename'])                       # filename
+                        # )                                                            # => filename
+                        yield({'values': stored_modified_file['@filename'], 'type': 'filename', 'to_ids': True,
+                               'categories': ['Artifacts dropped', 'Payload delivery'],
+                               'comment': 'modified'})
 
 
 def add_file(filename, results, hash, index, filedata=None):
@@ -391,9 +362,8 @@ def list_in_string(lst, data, regex=False):
         if regex:
             if re.search(item, data, flags=re.IGNORECASE):
                 return True
-        else:
-            if item in data:
-                return True
+        elif item in data:
+            return True
 
 
 def cleanup_ip(item):
@@ -434,9 +404,7 @@ def cleanup_hostname(item):
 
 
 def cleanup_url(item):
-    if item in ['/']:
-        return None
-    return item
+    return None if item in ['/'] else item
 
 
 def cleanup_filepath(item):
@@ -466,9 +434,7 @@ def cleanup_filepath(item):
         'C:\\Windows\\AppCompat\\Programs\\',
         'C:\\~'  # caused by temp file created by MS Office when opening malicious doc/xls/...
     }
-    if list_in_string(noise_substrings, item):
-        return None
-    return item
+    return None if list_in_string(noise_substrings, item) else item
 
 
 def cleanup_regkey(item):
@@ -494,9 +460,7 @@ def cleanup_regkey(item):
         r'\\System\\CurrentControlSet\\Services\\RdyBoost\\',
         r'\\Usage\\SpellingAndGrammarFiles'
     }
-    if list_in_string(noise_substrings, item, regex=True):
-        return None
-    return item
+    return None if list_in_string(noise_substrings, item, regex=True) else item
 
 
 def cleanup_regdata(item):

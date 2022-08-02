@@ -45,14 +45,13 @@ def handler(q=False):
     log.debug(toquery)
     try:
         answer = reader.asn(toquery)
-        stringmap = 'ASN=' + str(answer.autonomous_system_number) + ', AS Org=' + str(answer.autonomous_system_organization)
+        stringmap = f'ASN={str(answer.autonomous_system_number)}, AS Org={str(answer.autonomous_system_organization)}'
+
     except Exception as e:
         misperrors['error'] = f"GeoIP resolving error: {e}"
         return misperrors
 
-    r = {'results': [{'types': mispattributes['output'], 'values': stringmap}]}
-
-    return r
+    return {'results': [{'types': mispattributes['output'], 'values': stringmap}]}
 
 
 def introspection():

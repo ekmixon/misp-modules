@@ -33,36 +33,34 @@ moduleconfig = ['apikey']
 
 
 def handler(q=False):
-    if q:
-
-        request = json.loads(q)
-
-        if not request.get('config') or not (request['config'].get('apikey')):
-            misperrors['error'] = 'SecurityTrails authentication is missing'
-            return misperrors
-
-        api = DnsTrails(request['config'].get('apikey'))
-
-        if not api:
-            misperrors['error'] = 'SecurityTrails Error instance api'
-            return misperrors
-        if request.get('ip-src'):
-            ip = request['ip-src']
-            return handle_ip(api, ip, misperrors)
-        elif request.get('ip-dst'):
-            ip = request['ip-dst']
-            return handle_ip(api, ip, misperrors)
-        elif request.get('domain'):
-            domain = request['domain']
-            return handle_domain(api, domain, misperrors)
-        elif request.get('hostname'):
-            hostname = request['hostname']
-            return handle_domain(api, hostname, misperrors)
-        else:
-            misperrors['error'] = "Unsupported attributes types"
-            return misperrors
-    else:
+    if not q:
         return False
+    request = json.loads(q)
+
+    if not request.get('config') or not (request['config'].get('apikey')):
+        misperrors['error'] = 'SecurityTrails authentication is missing'
+        return misperrors
+
+    api = DnsTrails(request['config'].get('apikey'))
+
+    if not api:
+        misperrors['error'] = 'SecurityTrails Error instance api'
+        return misperrors
+    if request.get('ip-src'):
+        ip = request['ip-src']
+        return handle_ip(api, ip, misperrors)
+    elif request.get('ip-dst'):
+        ip = request['ip-dst']
+        return handle_ip(api, ip, misperrors)
+    elif request.get('domain'):
+        domain = request['domain']
+        return handle_domain(api, domain, misperrors)
+    elif request.get('hostname'):
+        hostname = request['hostname']
+        return handle_domain(api, hostname, misperrors)
+    else:
+        misperrors['error'] = "Unsupported attributes types"
+        return misperrors
 
 
 def handle_domain(api, domain, misperrors):
@@ -90,9 +88,8 @@ def handle_domain(api, domain, misperrors):
     time.sleep(1)
     r, status_ok = expand_whois(api, domain)
 
-    if status_ok:
-        if r:
-            result_filtered['results'].extend(r)
+    if status_ok and r:
+        result_filtered['results'].extend(r)
 
     time.sleep(1)
     r, status_ok = expand_history_ipv4_ipv6(api, domain)
@@ -184,53 +181,57 @@ def expand_domain_info(api, misperror, domain):
                                  'email' in soa_entry]
 
         if ns_servers:
-            r.append({'types': ['domain'],
-                      'values': ns_servers,
-                      'categories': ['Network activity'],
-                      'comment': 'List of name servers  of %s first seen %s ' %
-                                 (domain,
-                                  results['current_dns']['ns']['first_seen'])
-                      })
+            r.append(
+                {
+                    'types': ['domain'],
+                    'values': ns_servers,
+                    'categories': ['Network activity'],
+                    'comment': f"List of name servers  of {domain} first seen {results['current_dns']['ns']['first_seen']} ",
+                }
+            )
+
 
         if list_ipv4:
-            r.append({'types': ['domain|ip'],
-                      'values': ['%s|%s' % (domain, ipv4) for ipv4 in
-                                 list_ipv4],
-                      'categories': ['Network activity'],
+            r.append(
+                {
+                    'types': ['domain|ip'],
+                    'values': [f'{domain}|{ipv4}' for ipv4 in list_ipv4],
+                    'categories': ['Network activity'],
+                    'comment': f" List ipv4 of {domain} first seen {results['current_dns']['a']['first_seen']}",
+                }
+            )
 
-                      'comment': ' List ipv4 of %s first seen %s' %
-                                 (domain,
-                                  results['current_dns']['a']['first_seen'])
-
-                      })
         if list_ipv6:
-            r.append({'types': ['domain|ip'],
-                      'values': ['%s|%s' % (domain, ipv6) for ipv6 in
-                                 list_ipv6],
-                      'categories': ['Network activity'],
-                      'comment': ' List ipv6 of %s first seen %s' %
-                                 (domain,
-                                  results['current_dns']['aaaa']['first_seen'])
+            r.append(
+                {
+                    'types': ['domain|ip'],
+                    'values': [f'{domain}|{ipv6}' for ipv6 in list_ipv6],
+                    'categories': ['Network activity'],
+                    'comment': f" List ipv6 of {domain} first seen {results['current_dns']['aaaa']['first_seen']}",
+                }
+            )
 
-                      })
 
         if servers_mx:
-            r.append({'types': ['domain'],
-                      'values': servers_mx,
-                      'categories': ['Network activity'],
-                      'comment': ' List mx of %s first seen %s' %
-                                 (domain,
-                                  results['current_dns']['mx']['first_seen'])
+            r.append(
+                {
+                    'types': ['domain'],
+                    'values': servers_mx,
+                    'categories': ['Network activity'],
+                    'comment': f" List mx of {domain} first seen {results['current_dns']['mx']['first_seen']}",
+                }
+            )
 
-                      })
         if soa_hostnames:
-            r.append({'types': ['domain'],
-                      'values': soa_hostnames,
-                      'categories': ['Network activity'],
-                      'comment': ' List soa of %s first seen %s' %
-                                 (domain,
-                                  results['current_dns']['soa']['first_seen'])
-                      })
+            r.append(
+                {
+                    'types': ['domain'],
+                    'values': soa_hostnames,
+                    'categories': ['Network activity'],
+                    'comment': f" List soa of {domain} first seen {results['current_dns']['soa']['first_seen']}",
+                }
+            )
+
 
     return r, status_ok
 
@@ -240,20 +241,20 @@ def expand_subdomains(api, domain):
     status_ok = False
 
     try:
-        results = api.subdomains(domain)
-
-        if results:
+        if results := api.subdomains(domain):
             status_ok = True
             if 'subdomains' in results:
-                r.append({
-                    'types': ['domain'],
-                    'values': ['%s.%s' % (sub, domain)
-                               for sub in results['subdomains']],
-                    'categories': ['Network activity'],
-                    'comment': 'subdomains of %s' % domain
-                }
-
+                r.append(
+                    {
+                        'types': ['domain'],
+                        'values': [
+                            f'{sub}.{domain}' for sub in results['subdomains']
+                        ],
+                        'categories': ['Network activity'],
+                        'comment': f'subdomains of {domain}',
+                    }
                 )
+
     except APIError as e:
         misperrors['error'] = e.value
         return [], False
@@ -266,23 +267,19 @@ def expand_whois(api, domain):
     status_ok = False
 
     try:
-        results = api.whois(domain)
-
-        if results:
+        if results := api.whois(domain):
             status_ok = True
-            item_registrant = __select_registrant_item(results)
-            if item_registrant:
-
+            if item_registrant := __select_registrant_item(results):
                 if 'email' in item_registrant[0]:
                     r.append(
                         {
                             'types': ['whois-registrant-email'],
                             'values': [item_registrant[0]['email']],
                             'categories': ['Attribution'],
-                            'comment': 'Whois information of %s by securitytrails'
-                                       % domain
+                            'comment': f'Whois information of {domain} by securitytrails',
                         }
                     )
+
 
                 if 'telephone' in item_registrant[0]:
                     r.append(
@@ -290,10 +287,10 @@ def expand_whois(api, domain):
                             'types': ['whois-registrant-phone'],
                             'values': [item_registrant[0]['telephone']],
                             'categories': ['Attribution'],
-                            'comment': 'Whois information of %s by securitytrails'
-                                       % domain
+                            'comment': f'Whois information of {domain} by securitytrails',
                         }
                     )
+
 
                 if 'name' in item_registrant[0]:
                     r.append(
@@ -301,10 +298,10 @@ def expand_whois(api, domain):
                             'types': ['whois-registrant-name'],
                             'values': [item_registrant[0]['name']],
                             'categories': ['Attribution'],
-                            'comment': 'Whois information of %s by securitytrails'
-                                       % domain
+                            'comment': f'Whois information of {domain} by securitytrails',
                         }
                     )
+
 
                 if 'registrarName' in item_registrant[0]:
                     r.append(
@@ -312,10 +309,10 @@ def expand_whois(api, domain):
                             'types': ['whois-registrar'],
                             'values': [item_registrant[0]['registrarName']],
                             'categories': ['Attribution'],
-                            'comment': 'Whois information of %s by securitytrails'
-                                       % domain
+                            'comment': f'Whois information of {domain} by securitytrails',
                         }
                     )
+
 
                 if 'createdDate' in item_registrant[0]:
                     r.append(
@@ -323,10 +320,10 @@ def expand_whois(api, domain):
                             'types': ['whois-creation-date'],
                             'values': [item_registrant[0]['createdDate']],
                             'categories': ['Attribution'],
-                            'comment': 'Whois information of %s by securitytrails'
-                                       % domain
+                            'comment': f'Whois information of {domain} by securitytrails',
                         }
                     )
+
 
     except APIError as e:
         misperrors['error'] = e.value
@@ -340,16 +337,12 @@ def expand_history_ipv4_ipv6(api, domain):
     status_ok = False
 
     try:
-        results = api.history_dns_ipv4(domain)
-
-        if results:
+        if results := api.history_dns_ipv4(domain):
             status_ok = True
             r.extend(__history_ip(results, domain))
 
         time.sleep(1)
-        results = api.history_dns_aaaa(domain)
-
-        if results:
+        if results := api.history_dns_aaaa(domain):
             status_ok = True
             r.extend(__history_ip(results, domain, type_ip='ipv6'))
 
@@ -366,22 +359,17 @@ def expand_history_dns(api, domain):
 
     try:
 
-        results = api.history_dns_ns(domain)
-        if results:
+        if results := api.history_dns_ns(domain):
             r.extend(__history_dns(results, domain, 'nameserver', 'ns'))
 
         time.sleep(1)
 
-        results = api.history_dns_soa(domain)
-
-        if results:
+        if results := api.history_dns_soa(domain):
             r.extend(__history_dns(results, domain, 'email', 'soa'))
 
         time.sleep(1)
 
-        results = api.history_dns_mx(domain)
-
-        if results:
+        if results := api.history_dns_mx(domain):
             status_ok = True
             r.extend(__history_dns(results, domain, 'host', 'mx'))
 
@@ -398,10 +386,7 @@ def expand_history_whois(api, domain):
     r = []
     status_ok = False
     try:
-        results = api.history_whois(domain)
-
-        if results:
-
+        if results := api.history_whois(domain):
             if 'items' in results['result']:
                 for item in results['result']['items']:
                     item_registrant = __select_registrant_item(item)
@@ -458,17 +443,17 @@ def __history_ip(results, domain, type_ip='ip'):
     if 'records' in results:
         for record in results['records']:
             if 'values' in record:
-                for item in record['values']:
-                    r.append(
-                        {'types': ['domain|ip'],
-                         'values': ['%s|%s' % (domain, item[type_ip])],
-                         'categories': ['Network activity'],
-                         'comment': 'History IP on securitytrails %s '
-                                    'last seen: %s first seen: %s' %
-                                    (domain, record['last_seen'],
-                                     record['first_seen'])
-                         }
-                    )
+                r.extend(
+                    {
+                        'types': ['domain|ip'],
+                        'values': [f'{domain}|{item[type_ip]}'],
+                        'categories': ['Network activity'],
+                        'comment': 'History IP on securitytrails %s '
+                        'last seen: %s first seen: %s'
+                        % (domain, record['last_seen'], record['first_seen']),
+                    }
+                    for item in record['values']
+                )
 
     return r
 
@@ -482,26 +467,26 @@ def __history_dns(results, domain, type_serv, service):
                 values = record['values']
                 if type(values) is list:
 
-                    for item in record['values']:
-                        r.append(
-                            {'types': ['domain|ip'],
-                             'values': [item[type_serv]],
-                             'categories': ['Network activity'],
-                             'comment': 'history %s of %s last seen: %s first seen: %s' %
-                                        (service, domain, record['last_seen'],
-                                         record['first_seen'])
-                             }
-                        )
+                    r.extend(
+                        {
+                            'types': ['domain|ip'],
+                            'values': [item[type_serv]],
+                            'categories': ['Network activity'],
+                            'comment': f"history {service} of {domain} last seen: {record['last_seen']} first seen: {record['first_seen']}",
+                        }
+                        for item in values
+                    )
+
                 else:
                     r.append(
-                        {'types': ['domain|ip'],
-                         'values': [values[type_serv]],
-                         'categories': ['Network activity'],
-                         'comment': 'history %s of %s last seen: %s first seen: %s' %
-                                    (service, domain, record['last_seen'],
-                                     record['first_seen'])
-                         }
+                        {
+                            'types': ['domain|ip'],
+                            'values': [values[type_serv]],
+                            'categories': ['Network activity'],
+                            'comment': f"history {service} of {domain} last seen: {record['last_seen']} first seen: {record['first_seen']}",
+                        }
                     )
+
     return r
 
 
@@ -510,17 +495,15 @@ def expand_searching_domain(api, ip):
     status_ok = False
 
     try:
-        results = api.searching_domains(ipv4=ip)
-
-        if results:
+        if results := api.searching_domains(ipv4=ip):
             if 'records' in results:
                 res = [(r['host_provider'], r['hostname'], r['whois'])
                        for r in results['records']]
 
                 for host_provider, hostname, whois in res:
-                    comment = 'domain for %s by %s' % (ip, host_provider[0])
+                    comment = f'domain for {ip} by {host_provider[0]}'
                     if whois['registrar']:
-                        comment = comment + ' registrar %s' % whois['registrar']
+                        comment = comment + f" registrar {whois['registrar']}"
 
                     r.append(
                         {

@@ -68,7 +68,13 @@ class CsvParser():
                     elif self.header[i] in object_fields:
                         object_indexes.append(i)
                 if object_indexes:
-                    if not any(field in self.header for field in ('object_uuid', 'object_id')) or 'object_name' not in self.header:
+                    if (
+                        all(
+                            field not in self.header
+                            for field in ('object_uuid', 'object_id')
+                        )
+                        or 'object_name' not in self.header
+                    ):
                         for line in self.data:
                             for index in object_indexes:
                                 if line[index].strip():
@@ -103,8 +109,7 @@ class CsvParser():
             name_index = self.header.index('object_name')
             for line in self.data:
                 attribute = self.__score_mapping[score](line, attribute_indexes)
-                object_id = line[object_id_index]
-                if object_id:
+                if object_id := line[object_id_index]:
                     if object_id not in objects:
                         misp_object = MISPObject(line[name_index])
                         if id_name == 'object_uuid':
@@ -136,7 +141,7 @@ class CsvParser():
                     continue
                 for index in types_indexes:
                     attribute = {'type': self.header[index], 'value': line[index]}
-                    attribute.update(base_attribute)
+                    attribute |= base_attribute
                     self.misp_event.add_attribute(**attribute)
         else:
             for line in self.data:
@@ -153,7 +158,7 @@ class CsvParser():
         for line in self.data:
             a_uuid, _, category, _type, value, comment, ids, timestamp, relation, tag, o_uuid, name, _ = line[:self.fields_number]
             attribute = {t: v.strip('"') for t, v in zip(attribute_fields, (a_uuid, category, _type, value, comment, ids, timestamp))}
-            attribute['to_ids'] = True if attribute['to_ids'] == '1' else False
+            attribute['to_ids'] = attribute['to_ids'] == '1'
             if tag:
                 attribute['Tag'] = [{'name': t.strip()} for t in tag.split(',')]
             if relation:
@@ -220,7 +225,7 @@ class CsvParser():
 
     @staticmethod
     def __deal_with_ids(attribute):
-        attribute['to_ids'] = True if attribute['to_ids'] == '1' else False
+        attribute['to_ids'] = attribute['to_ids'] == '1'
 
     @staticmethod
     def __deal_with_tags(attribute):
@@ -245,11 +250,23 @@ def __any_mandatory_misp_field(header):
 
 
 def __special_parsing(data, delimiter):
-    return list(tuple(part.strip() for part in line[0].split(delimiter)) for line in csv.reader(io.TextIOWrapper(io.BytesIO(data.encode()), encoding='utf-8')) if line and not line[0].startswith('#'))
+    return [
+        tuple(part.strip() for part in line[0].split(delimiter))
+        for line in csv.reader(
+            io.TextIOWrapper(io.BytesIO(data.encode()), encoding='utf-8')
+        )
+        if line and not line[0].startswith('#')
+    ]
 
 
 def __standard_parsing(data):
-    return list(tuple(part.strip() for part in line) for line in csv.reader(io.TextIOWrapper(io.BytesIO(data.encode()), encoding='utf-8')) if line and not line[0].startswith('#'))
+    return [
+        tuple(part.strip() for part in line)
+        for line in csv.reader(
+            io.TextIOWrapper(io.BytesIO(data.encode()), encoding='utf-8')
+        )
+        if line and not line[0].startswith('#')
+    ]
 
 
 def handler(q=False):
@@ -266,21 +283,20 @@ def handler(q=False):
         misperrors['error'] = "Unsupported attributes type"
         return misperrors
     has_header = request['config'].get('has_header')
-    has_header = True if has_header == '1' else False
+    has_header = has_header == '1'
     header = request['config']['header'].split(',') if request['config'].get('header').strip() else []
     delimiter = request['config']['special_delimiter'] if request['config'].get('special_delimiter').strip() else ','
     data = __standard_parsing(data) if delimiter == ',' else __special_parsing(data, delimiter)
-    if not header:
-        if has_header:
-            header = data.pop(0)
-        else:
-            misperrors['error'] = "Configuration error. Provide a header or use the one within the csv file and tick the checkbox 'Has_header'."
-            return misperrors
-    else:
+    if header:
         header = [h.strip() for h in header]
         if has_header:
             del data[0]
-    if header == misp_standard_csv_header or header == misp_extended_csv_header:
+    elif has_header:
+        header = data.pop(0)
+    else:
+        misperrors['error'] = "Configuration error. Provide a header or use the one within the csv file and tick the checkbox 'Has_header'."
+        return misperrors
+    if header in [misp_standard_csv_header, misp_extended_csv_header]:
         header = misp_standard_csv_header
     descFilename = os.path.join(pymisp_path[0], 'data/describeTypes.json')
     with open(descFilename, 'r') as f:
@@ -288,24 +304,27 @@ def handler(q=False):
     MISPtypes = description['types']
     for h in header:
         if not any((h in MISPtypes, h in misp_extended_csv_header, h in ('', ' ', '_', 'object_id'))):
-            misperrors['error'] = 'Wrong header field: {}. Please use a header value that can be recognized by MISP (or alternatively skip it using a whitespace).'.format(h)
+            misperrors[
+                'error'
+            ] = f'Wrong header field: {h}. Please use a header value that can be recognized by MISP (or alternatively skip it using a whitespace).'
+
             return misperrors
     from_misp = all((h in misp_extended_csv_header or h in ('', ' ', '_', 'object_id') for h in header))
     if from_misp:
         if not __any_mandatory_misp_field(header):
             misperrors['error'] = 'Please make sure the data you try to import can be identified with a type/value combinaison.'
             return misperrors
-    else:
-        if __any_mandatory_misp_field(header):
-            wrong_types = tuple(wrong_type for wrong_type in ('type', 'value') if wrong_type in header)
-            misperrors['error'] = 'Error with the following header: {}. It contains the following field(s): {}, which is(are) already provided by the usage of at least on MISP attribute type in the header.'.format(header, 'and'.join(wrong_types))
-            return misperrors
+    elif __any_mandatory_misp_field(header):
+        wrong_types = tuple(wrong_type for wrong_type in ('type', 'value') if wrong_type in header)
+        misperrors[
+            'error'
+        ] = f"Error with the following header: {header}. It contains the following field(s): {'and'.join(wrong_types)}, which is(are) already provided by the usage of at least on MISP attribute type in the header."
+
+        return misperrors
     csv_parser = CsvParser(header, has_header, delimiter, data, from_misp, MISPtypes, description['categories'])
     # build the attributes
     result = csv_parser.parse_csv()
-    if 'error' in result:
-        return result
-    return {'results': csv_parser.results}
+    return result if 'error' in result else {'results': csv_parser.results}
 
 
 def introspection():

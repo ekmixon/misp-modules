@@ -39,10 +39,16 @@ def submit_request(client, request):
         return submit_content(client, request['attachment'], request['data'])
     if 'malware-sample' in request:
         return submit_content(client, request['malware-sample'].split('|')[0], request['data'])
-    for feature in ('url', 'domain'):
-        if feature in request:
-            return submit_url(client, request[feature])
-    return {"error": "No valid attribute type for this module has been provided."}
+    return next(
+        (
+            submit_url(client, request[feature])
+            for feature in ('url', 'domain')
+            if feature in request
+        ),
+        {
+            "error": "No valid attribute type for this module has been provided."
+        },
+    )
 
 
 def submit_url(client, url):

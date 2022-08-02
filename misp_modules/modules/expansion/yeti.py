@@ -32,17 +32,21 @@ class Yeti():
         self.misp_event.add_attribute(**attribute)
 
     def search(self, value):
-        obs = self.yeti_client.observable_search(value=value)
-        if obs:
+        if obs := self.yeti_client.observable_search(value=value):
             return obs[0]
 
     def get_neighboors(self, obs_id):
         neighboors = self.yeti_client.neighbors_observables(obs_id)
         if neighboors and 'objs' in neighboors:
-            links_by_id = {link['dst']['id']: (link['description'], 'dst') for link in neighboors['links']
-                           if link['dst']['id'] != obs_id}
-            links_by_id.update({link['src']['id']: (link['description'], 'src') for link in neighboors['links']
-                                if link['src']['id'] != obs_id})
+            links_by_id = {
+                link['dst']['id']: (link['description'], 'dst')
+                for link in neighboors['links']
+                if link['dst']['id'] != obs_id
+            } | {
+                link['src']['id']: (link['description'], 'src')
+                for link in neighboors['links']
+                if link['src']['id'] != obs_id
+            }
 
             for n in neighboors['objs']:
                 yield n, links_by_id[n['id']]
@@ -51,25 +55,23 @@ class Yeti():
         obs = self.search(self.attribute['value'])
 
         for obs_to_add, link in self.get_neighboors(obs['id']):
-            object_misp_domain_ip = self.__get_object_domain_ip(obs_to_add)
-            if object_misp_domain_ip:
+            if object_misp_domain_ip := self.__get_object_domain_ip(obs_to_add):
                 self.misp_event.add_object(object_misp_domain_ip)
                 continue
-            object_misp_url = self.__get_object_url(obs_to_add)
-            if object_misp_url:
+            if object_misp_url := self.__get_object_url(obs_to_add):
                 self.misp_event.add_object(object_misp_url)
                 continue
             if link[0] == 'NS record':
-                object_ns_record = self.__get_object_ns_record(obs_to_add, link[1])
-                if object_ns_record:
+                if object_ns_record := self.__get_object_ns_record(
+                    obs_to_add, link[1]
+                ):
                     self.misp_event.add_object(object_ns_record)
                     continue
             self.__get_attribute(obs_to_add, link[0])
 
     def get_result(self):
         event = json.loads(self.misp_event.to_json())
-        results = {key: event[key] for key in ('Attribute', 'Object') if key in event}
-        return results
+        return {key: event[key] for key in ('Attribute', 'Object') if key in event}
 
     def __get_attribute(self, obs_to_add, link):
 
@@ -81,9 +83,9 @@ class Yeti():
             else:
                 value = obs_to_add['value']
             attr = self.misp_event.add_attribute(value=value, type=type_attr)
-            attr.comment = '%s: %s' % (link, self.attribute['value'])
+            attr.comment = f"{link}: {self.attribute['value']}"
         except KeyError:
-            logging.error('type not found %s' % obs_to_add['type'])
+            logging.error(f"type not found {obs_to_add['type']}")
             return
 
         for t in obs_to_add['tags']:
@@ -106,11 +108,11 @@ class Yeti():
                 obj_to_add['type'] in ('Hostname', 'Domain', 'Ip') and self.attribute['type'] == 'url'
         ):
             url_object = MISPObject('url')
-            obj_relation = self.__get_relation(obj_to_add)
-            if obj_relation:
+            if obj_relation := self.__get_relation(obj_to_add):
                 url_object.add_attribute(obj_relation, obj_to_add['value'])
-            obj_relation = self.__get_relation(self.attribute, is_yeti_object=False)
-            if obj_relation:
+            if obj_relation := self.__get_relation(
+                self.attribute, is_yeti_object=False
+            ):
                 url_object.add_attribute(obj_relation,
                                          self.attribute['value'])
             url_object.add_reference(self.attribute['uuid'], 'related_to')
@@ -139,11 +141,9 @@ class Yeti():
             type_attribute = self.misp_mapping[obj['type']]
         else:
             type_attribute = obj['type']
-        if type_attribute == 'ip-src' or type_attribute == 'ip-dst':
+        if type_attribute in ['ip-src', 'ip-dst']:
             return 'ip'
-        elif 'domain' == type_attribute:
-            return 'domain'
-        elif 'hostname' == type_attribute:
+        elif type_attribute in ['domain', 'hostname']:
             return 'domain'
         elif type_attribute == 'url':
             return type_attribute

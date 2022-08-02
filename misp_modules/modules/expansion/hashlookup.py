@@ -61,7 +61,7 @@ class HashlookupParser():
                     break
 
 def check_url(url):
-    return "{}/".format(url) if not url.endswith('/') else url
+    return url if url.endswith('/') else f"{url}/"
 
 
 def handler(q=False):
@@ -75,13 +75,14 @@ def handler(q=False):
         pass
     elif attribute.get('type') == 'sha1':
         pass
-    elif attribute.get('type') == 'sha256':
-        pass
-    else:
+    elif attribute.get('type') != 'sha256':
         misperrors['error'] = 'md5 or sha1 or sha256 is missing.'
         return misperrors
     api_url = check_url(request['config']['custom_API']) if request['config'].get('custom_API') else hashlookup_url
-    r = requests.get("{}/lookup/{}/{}".format(api_url, attribute.get('type'), attribute['value']))
+    r = requests.get(
+        f"{api_url}/lookup/{attribute.get('type')}/{attribute['value']}"
+    )
+
     if r.status_code == 200:
         hashlookupresult = r.json()
         if not hashlookupresult:
@@ -95,8 +96,7 @@ def handler(q=False):
         return misperrors
     parser = HashlookupParser(attribute, hashlookupresult, api_url)
     parser.parse_hashlookup_information()
-    result = parser.get_result()
-    return result
+    return parser.get_result()
 
 
 def introspection():
